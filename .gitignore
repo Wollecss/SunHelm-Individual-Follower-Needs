@@ -1,0 +1,7 @@
+build/
+install/
+build_output.txt
+.vs/
+.vscode/settings.json
+.idea/
+cmake-build*/
