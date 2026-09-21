@@ -1,6 +1,11 @@
 build/
 install/
 build_output.txt
+
+# Local-only, machine-specific: these contain absolute paths (and a username) from the development
+# machine. Their portable content lives in ARCHITECTURE.md, AGENTS.md and CONTRIBUTING.md.
+CLAUDE.md
+build_plugin.bat
 .vs/
 .vscode/settings.json
 .idea/

@@ -1,86 +1,187 @@
 # SunHelm - Individual Follower Needs
 
-Your followers get hungry and thirsty on their own, and do something about it.
+**Your followers get hungry and thirsty on their own, and do something about it.**
 
-SunHelm tracks survival needs for the player. This adds **per-follower hunger and thirst**, tracked
-separately for each companion, and lets them eat and drink from their own inventory when they need
-to. Fatigue and cold are shared with you rather than tracked separately, so sleeping and staying
-warm still takes care of the whole party at once.
+SunHelm Survival tracks hunger, thirst, fatigue and cold for the player. This SKSE plugin adds
+**per-follower hunger and thirst** - tracked independently for each companion, using SunHelm's own
+rates and thresholds - and lets followers eat and drink from their own inventory when they need to.
+
+Fatigue and cold are deliberately *mirrored* from the player rather than simulated separately, so
+sleeping at an inn or warming up by a fire still takes care of the whole party at once.
+
+Written entirely in native C++ against CommonLibSSE-NG. **No Papyrus scripts, no quest, no script
+lag.**
+
+---
+
+## Key features
+
+**Independent hunger and thirst per follower.** Each companion has their own values, accumulating at
+exactly the rate configured in SunHelm's own MCM. Change SunHelm's difficulty and followers follow
+suit - there is no duplicate rate setting to keep in sync.
+
+**Followers feed themselves.** When a follower gets hungry or thirsty enough, they search their own
+inventory for something SunHelm recognises as food or drink and consume it through the engine's real
+consumption path - the item is genuinely used up and the matching animation plays. A cooldown stops
+them working through an entire pack in one go.
+
+**Fatigue and cold mirror the player.** A follower is as tired and as cold as you are. This is a
+design decision rather than a limitation: the player's existing survival routine covers the whole
+party without micromanagement.
+
+**The same penalties SunHelm gives you.** Followers receive SunHelm's own stage abilities at the
+same thresholds, so a starving companion is genuinely weakened. Fully toggleable if you want
+tracking without mechanical consequences.
+
+**Needs persist.** Stored in the save and restored on load, including across a full game restart.
+
+**Automatic follower detection.** No spell to cast, no dialogue, no per-follower setup. Works with or
+without a multi-follower framework such as Nether's Follower Framework.
+
+---
+
+## Directory structure
+
+Installed mod:
+
+```
+SunHelm - Individual Follower Needs/
+├── SKSE/Plugins/
+│   └── SunHelmFollowerNeeds.dll     the plugin itself
+├── SunHelmFollowerNeeds.esp         ESL-flagged; persistent storage only
+└── readme.md
+```
+
+Source repository:
+
+```
+.
+├── src/                    plugin source
+│   ├── plugin.cpp          entry point, SKSE lifecycle
+│   ├── SunHelm.cpp/.h      integration layer over SunHelm's forms and rules
+│   ├── Followers.cpp/.h    tracked-follower registry, hire/dismiss detection
+│   ├── Needs.cpp/.h        the tick: accumulation, mirroring, stage abilities
+│   ├── Feeding.cpp/.h      inventory search and consumption
+│   ├── Persistence.cpp/.h  save/load through the storage globals
+│   ├── Settings.h/.cpp     configuration and its JSON file
+│   ├── UI.cpp/.h           SKSE Menu Framework pages
+│   ├── DevBenchTools.cpp   optional live diagnostics
+│   └── DevBench/           vendored MIT-licensed DevBench API
+├── esp/
+│   ├── gen_esp_yaml.sh     regenerates the plugin's YAML source
+│   ├── yaml/               Spriggit source of truth for the ESP
+│   └── SunHelmFollowerNeeds.esp
+├── include/                vendored third-party headers
+├── ARCHITECTURE.md         how it works internally
+├── AGENTS.md               guidance for AI coding agents
+└── CONTRIBUTING.md         build and test instructions
+```
+
+---
 
 ## Requirements
 
-- **SKSE64**
-- **SunHelm Survival** - all rates, thresholds and food categories come from SunHelm itself
-- **SunHelmFollowerNeeds.esp** must be enabled (it's ESL-flagged, so it costs no load order slot)
-- *Optional:* **SKSE Menu Framework** - only needed for the settings menu. Without it the mod runs
-  perfectly well on its defaults, you just can't change them in game.
+| Requirement | Notes |
+| --- | --- |
+| **SKSE64** | Required |
+| **SunHelm Survival** | Required - all rates, thresholds and food categories come from it |
+| **SunHelmFollowerNeeds.esp** | Must be enabled. ESL-flagged, so it costs no load order slot |
+| **SKSE Menu Framework** | *Optional.* Only needed for the in-game settings menu |
 
-## How it works
+Without SKSE Menu Framework the plugin runs perfectly well on its defaults - you simply can't change
+them in game. Settings can still be edited directly in the JSON file.
 
-Followers are picked up automatically when you recruit them - no spell to cast, no dialogue, no
-configuration. Works with or without a multi-follower framework such as Nether's Follower Framework.
+### Compatibility
 
-- **Hunger and thirst** build at exactly the rate you've set in SunHelm's own MCM. Change SunHelm's
-  difficulty and your followers follow suit; there's no duplicate setting to keep in sync.
-- **Eating and drinking** happens on its own. When a follower gets hungry or thirsty enough, they
-  look through their own pack for something suitable and consume it - the item is really used up,
-  and they'll play the matching animation. Give them food and they'll look after themselves. Don't,
-  and they'll tell you they've got nothing.
-- **Fatigue and cold mirror yours.** A follower is as tired and as cold as you are, so sleeping in
-  an inn or warming up at a fire fixes the whole party.
-- **Penalties** are the same ones SunHelm applies to you, at the same stages.
-- **Needs are saved** with your game and come back when you load.
+**SunHelm compatibility patches work automatically.** Food is identified by SunHelm's own keywords
+and FormLists rather than a fixed list of items, so any patch that tags another mod's food - whether
+by ESP edit or KID - is picked up with no extra work.
 
-Hiring a follower starts them fresh, and dismissing one stops tracking them entirely. A follower
-who's waiting somewhere for you is frozen rather than quietly starving while you're away.
+**Your own categorisations carry over.** When SunHelm asks you to categorise an unknown food, your
+answer is stored in SunHelm's FormLists, which this plugin reads. Anything you've classified becomes
+edible for your followers too.
 
-## Settings
+**Safe alongside "Sunhelm - Follower Needs and Needs Based Fast Travel"**, which does something
+different: it scales *your* food's value by party size and mirrors your stage onto followers
+cosmetically. This mod gives each follower their own real, independent hunger and thirst.
 
-Found under **SunHelm Follower Needs** in the SKSE menu. Everything is saved to
-`Data/SKSE/Plugins/SunHelmFollowerNeeds.json`.
+---
 
-| Setting | Default | What it does |
+## Installation
+
+1. Install with a mod manager, or extract into `Data/`.
+2. **Enable `SunHelmFollowerNeeds.esp`** in your plugin list. Without it the mod still runs, but
+   cannot save follower needs between sessions - and it says so in the log.
+
+That's it. Followers are detected automatically when recruited.
+
+---
+
+## Configuration
+
+Found under **SunHelm Follower Needs** in the SKSE menu. All settings are written to
+`Data/SKSE/Plugins/SunHelmFollowerNeeds.json` and reloaded at startup.
+
+| Setting | Default | Description |
 | --- | --- | --- |
 | Track follower needs | On | Master switch |
 | Followers tracked | 3 | How many at once, up to 10 |
-| Hunger / Thirst | On | Tracked per follower |
-| Fatigue / Cold | On | Mirrored from you |
-| Apply penalties to followers | On | Off means needs are tracked but carry no mechanical effect |
-| Needs can damage health | **Off** | Losing a companion to starvation is a harsh failure, so this is opt-in |
-| Followers feed themselves | On | Off means they only improve when you feed them |
+| Hunger / Thirst | On | Tracked independently per follower |
+| Fatigue / Cold | On | Mirrored from the player |
+| Apply penalties to followers | On | Off keeps tracking but removes mechanical effects |
+| Needs can damage health | **Off** | Opt-in. Losing a companion to starvation is a harsh failure |
+| Followers feed themselves | On | Off means they only improve when fed by the player |
 | Eat / drink once they are | Peckish / Thirsty | How bad it gets before they act |
 | Announcements | On | Per need, plus eating and drinking |
 
-The tracking limit defaults to 3 deliberately. Raising it is fine - tracking runs natively rather
-than in Papyrus, so there's no script lag - it just means slightly more data in your save per
-follower.
+The tracking limit defaults to 3 deliberately. Raising it is safe - tracking runs natively rather
+than in Papyrus, so there is no script lag - it simply means slightly more data in your save per
+tracked follower. Ten is the hard ceiling, set by the number of storage slots in the ESP.
+
+---
 
 ## Known limitations
 
-- **Followers only drink from their own inventory.** They can't drink from rivers, wells or
-  fountains the way you can. Hand them waterskins or bottled water.
-- **Humanoid followers only.** Animal companions aren't tracked.
-- **Food has to be something SunHelm recognises.** Anything with a SunHelm patch works
-  automatically, and so does anything you've already categorised yourself when SunHelm asked you
-  about an unknown food - your answer applies to your followers too. Unrecognised food doesn't feed
-  followers, but it doesn't feed you either.
-- **Ten followers maximum**, regardless of what your follower framework allows.
+- **Followers only drink from their own inventory.** They cannot drink from rivers, wells or
+  fountains the way the player can. Give them waterskins or bottled water.
+- **Humanoid followers only.** Animal companions are not tracked.
+- **Food must be something SunHelm recognises.** Unrecognised food doesn't feed followers - but it
+  doesn't feed the player either, so this fails in the same direction SunHelm does.
+- **Ten followers maximum**, regardless of what your follower framework permits.
 
-## Compatibility
+---
 
-Works alongside SunHelm's compatibility patches with no extra work, because food is identified by
-SunHelm's own keywords and lists rather than a fixed list of items.
+## Verification and troubleshooting
 
-Safe to use with **Sunhelm - Follower Needs and Needs Based Fast Travel**, which does something
-different (it scales *your* food's value by party size and mirrors your stage onto followers for
-show). This mod gives each follower their own real hunger and thirst.
+The log lives at:
 
-## Troubleshooting
+```
+Documents\My Games\Skyrim Special Edition\SKSE\SunHelmFollowerNeeds.log
+```
 
-The log is at
-`Documents\My Games\Skyrim Special Edition\SKSE\SunHelmFollowerNeeds.log`, and it's fairly talkative
-- it records who's being tracked, what they ate and for how much, and when they couldn't find
-anything. If a follower isn't eating something you expect them to, that log will say so.
+It is deliberately talkative. It records which followers are tracked, what they ate or drank and for
+how much, when they couldn't find anything, and what was restored from a save. If a follower isn't
+eating something you expect, the log says so explicitly rather than failing silently.
 
-If nothing is tracked at all, check that `SunHelmFollowerNeeds.esp` is actually enabled - without it
-the mod still runs but can't save needs between sessions, and it says so in the log.
+A healthy startup looks like:
+
+```
+SunHelm Follower Needs v1.0.0.0 loaded
+Settings loaded (tracking up to 3 follower(s))
+SunHelm resolved (forms found; values not read until the first tick)
+Persistence ready (10 slots)
+Follower poll loop started
+Tracking follower 'Lydia' in slot 1
+```
+
+If **DevBench** is installed, three diagnostic tools are registered for live inspection - see
+[ARCHITECTURE.md](ARCHITECTURE.md). They are inert when DevBench is absent.
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE).
+
+The vendored DevBench API in `src/DevBench/` and the SKSE Menu Framework header in `include/` are
+third-party components under their own licenses; see the notices in those files.
