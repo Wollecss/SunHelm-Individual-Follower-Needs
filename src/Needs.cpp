@@ -2,6 +2,7 @@
 
 #include "Feeding.h"
 #include "Followers.h"
+#include "Persistence.h"
 #include "Settings.h"
 #include "SunHelm.h"
 
@@ -205,4 +206,8 @@ void Needs::Update()
 			SyncStage(a_state, a_actor, need, stage);
 		}
 	});
+
+	// Mirrored out every tick rather than on a save hook: the engine captures whatever the globals
+	// hold whenever the player saves, so keeping them current means no save event can be missed.
+	Persistence::Save();
 }

@@ -1,0 +1,13 @@
+SpriggitSource:
+  PackageName: Spriggit.Yaml.Skyrim
+  Version: 0.41
+ModKey: SunHelmFollowerNeeds.esp
+GameRelease: SkyrimSE
+ModHeader:
+  Stats:
+    Version: 1.7
+  Author: Wollecs
+  Description: Persistent storage for SunHelm Individual Follower Needs
+  MasterReferences:
+  - Master: Skyrim.esm
+    FileSize: 0

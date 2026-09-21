@@ -8,8 +8,17 @@
 
 namespace
 {
+	struct PendingNeeds
+	{
+		float hunger{ 0.0f };
+		float thirst{ 0.0f };
+	};
+
 	std::mutex                                       g_mutex;
 	std::unordered_map<RE::FormID, Followers::State> g_tracked;
+
+	// Needs read out of a save, waiting for their follower to be picked up again.
+	std::unordered_map<RE::FormID, PendingNeeds> g_pendingRestore;
 
 	std::atomic<bool> g_gameReady{ false };
 	std::atomic<bool> g_running{ false };
@@ -108,6 +117,7 @@ namespace
 
 		std::vector<RE::FormID>                  dismissed;
 		std::vector<std::pair<std::string, int>> hired;
+		std::vector<std::string>                 restored;
 
 		{
 			std::lock_guard lock(g_mutex);
@@ -135,13 +145,23 @@ namespace
 						continue;
 					}
 					// Hiring starts everyone from rested and fed rather than trying to guess what
-					// they were doing before they joined.
+					// they were doing before they joined - unless this is the same follower coming
+					// back from a loaded save, in which case their stored needs are restored.
 					Followers::State state{};
 					state.formID = formID;
 					state.name = actor->GetDisplayFullName();
 					state.lastTickHours = RE::Calendar::GetSingleton()->GetHoursPassed();
 					state.active = IsActive(actor);
-					hired.emplace_back(state.name, static_cast<int>(g_tracked.size()) + 1);
+
+					if (const auto pending = g_pendingRestore.find(formID); pending != g_pendingRestore.end()) {
+						state.hunger = pending->second.hunger;
+						state.thirst = pending->second.thirst;
+						g_pendingRestore.erase(pending);
+						restored.push_back(state.name);
+					} else {
+						hired.emplace_back(state.name, static_cast<int>(g_tracked.size()) + 1);
+					}
+
 					g_tracked.emplace(formID, std::move(state));
 				} else {
 					it->second.active = IsActive(actor);
@@ -158,6 +178,9 @@ namespace
 		}
 		for (const auto& [name, slot] : hired) {
 			logger::info("Tracking follower '{}' in slot {}", name, slot);
+		}
+		for (const auto& name : restored) {
+			logger::info("Restored tracked follower '{}' from the save", name);
 		}
 	}
 
@@ -215,6 +238,13 @@ void Followers::Reset()
 {
 	std::lock_guard lock(g_mutex);
 	g_tracked.clear();
+	g_pendingRestore.clear();
+}
+
+void Followers::SeedRestoredNeeds(RE::FormID a_formID, float a_hunger, float a_thirst)
+{
+	std::lock_guard lock(g_mutex);
+	g_pendingRestore[a_formID] = PendingNeeds{ a_hunger, a_thirst };
 }
 
 std::vector<Followers::State> Followers::Snapshot()

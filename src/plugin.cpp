@@ -1,5 +1,6 @@
 #include "DevBenchTools.h"
 #include "Followers.h"
+#include "Persistence.h"
 #include "SunHelm.h"
 #include "UI.h"
 
@@ -47,6 +48,7 @@ namespace
 			// Forms only exist once all plugins are loaded. This also fires at the main menu,
 			// where there is no loaded world - form lookup is fine there, touching actors is not.
 			if (SunHelm::Resolve()) {
+				Persistence::Resolve();
 				Followers::Start();
 			}
 			break;
@@ -55,11 +57,14 @@ namespace
 			Followers::SetGameReady(true);
 			break;
 		case SKSE::MessagingInterface::kPostLoadGame:
+			// The storage globals only hold this save's values once it's live - reading them any
+			// earlier gets the ESP's compiled-in defaults instead.
+			Persistence::Load();
 			Followers::SetGameReady(true);
 			break;
 		case SKSE::MessagingInterface::kPreLoadGame:
-			// Clearing here keeps one save's followers from leaking into the next. Until state is
-			// persisted in the quest's aliases, a loaded save simply re-detects who is with you.
+			// Clearing here keeps one save's followers from leaking into the next; whatever the
+			// incoming save stored is read back in kPostLoadGame.
 			Followers::SetGameReady(false);
 			Followers::Reset();
 			break;

@@ -4,9 +4,9 @@
 
 namespace Settings
 {
-	// How many follower slots the quest will ever be able to persist. Raising this past what the
-	// ESP actually declares would silently drop state on save, so it is the hard ceiling for
-	// maxTracked rather than a suggestion.
+	// How many follower slots exist in storage. This MUST match SLOTS in esp/gen_esp_yaml.sh - the
+	// ESP declares four globals per slot, and Persistence::Resolve() fails (disabling persistence
+	// entirely, loudly) if it can't find every one of them. Raising it means regenerating the ESP.
 	inline constexpr int kMaxSlots = 10;
 	inline constexpr int kDefaultTracked = 3;
 

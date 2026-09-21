@@ -37,9 +37,14 @@ namespace Followers
 	// while it is false: kDataLoaded also fires at the main menu, where there is no loaded world.
 	void SetGameReady(bool a_ready);
 
-	// Drops all tracking. A loaded save brings its own followers, and stale entries from the
-	// previous session would otherwise leak across.
+	// Drops all tracking and any pending restores. A loaded save brings its own followers, and
+	// stale entries from the previous session would otherwise leak across.
 	void Reset();
+
+	// Remembers needs read back from a save, to be applied the next time that follower is picked
+	// up. Kept pending rather than applied immediately because the actor usually isn't loaded yet
+	// at the point a save becomes live.
+	void SeedRestoredNeeds(RE::FormID a_formID, float a_hunger, float a_thirst);
 
 	std::vector<State> Snapshot();
 	std::size_t        TrackedCount();
