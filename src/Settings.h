@@ -56,9 +56,33 @@ namespace Settings
 		// Longer leash on buying, which is attempted every tick while consumption is rate-limited.
 		// Turn both of these down if you'd rather your followers drink themselves silly.
 		float purchaseCooldownHours{ 1.0f };
+		// Ale gets its own leash, separate from meals. It's deliberately long: this is the setting
+		// that decides what an evening in a tavern costs, since a follower who keeps the bar in
+		// sight will keep ordering for as long as they're there. A round every couple of hours is
+		// ambience at a few gold an hour; every half hour empties a purse.
+		//
+		// Drinking themselves under the table on their own coin is not meant to be the fast route.
+		// A player who actually wants a follower drunk hands them drinks.
+		float aleCooldownHours{ 2.0f };
+		// Chance a thirsty follower in a tavern orders ale rather than water. Nobody walks into an
+		// inn and asks for water - but ale restores half what water does, so this is a real trade,
+		// and anyone who would rather have efficient followers can turn it down to zero.
+		int alePreferenceChance{ 65 };
 		// Chance per eligible tick that a follower in a tavern buys a drink they don't strictly
-		// need. The only purchase that isn't driven by hunger or thirst.
+		// need. Deliberately still rolled while they're thirsty: being thirsty in a tavern is a
+		// reason to have a drink, not a reason to abstain.
 		int socialDrinkChance{ 25 };
+		// How long a drink keeps counting toward getting drunk. Long on purpose, and tied to the ale
+		// cooldown above: if rounds are two hours apart, a window shorter than the time it takes to
+		// buy three of them means the count resets before it ever gets there. Keep this comfortably
+		// above three times the round gap or drunkenness becomes unreachable by purchase alone.
+		float drinkStackWindowHours{ 12.0f };
+		// How long after leaving a tavern the drink wears off. Separate from the stacking window
+		// above, and shorter, because those two want opposite things: drinks should accumulate
+		// slowly, but a follower shouldn't still be staggering a full day after last call. Long
+		// enough to enjoy the walk home, which is the entire point of a drunk companion. While
+		// they're still in the inn they stay drunk regardless - they're still ordering.
+		float soberUpHours{ 4.0f };
 
 		bool notifyNeed[static_cast<std::size_t>(SunHelm::Need::kTotal)]{ true, true, true, true };
 		bool notifyConsumption{ true };

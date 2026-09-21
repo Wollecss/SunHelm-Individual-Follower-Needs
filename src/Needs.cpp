@@ -119,9 +119,6 @@ namespace
 		}
 	}
 
-	// How long after their last drink a follower sobers up.
-	constexpr float kSoberUpHours = 4.0f;
-
 	// Drunkenness rides on SunHelm's own drunk ability and its own drinks-before-drunk setting, so a
 	// tipsy follower looks the same as a tipsy player.
 	void UpdateDrunkenness(Followers::State& a_state, RE::Actor& a_actor, float a_nowHours)
@@ -131,12 +128,29 @@ namespace
 			return;
 		}
 
-		const auto sinceLastDrink = a_nowHours - a_state.lastDrinkHours;
-		if (a_state.drinksHad > 0 && (sinceLastDrink < 0.0f || sinceLastDrink >= kSoberUpHours)) {
+		const auto& settings = Settings::Get();
+		const auto  sinceLastDrink = a_nowHours - a_state.lastDrinkHours;
+		// A negative gap means an older save was loaded; treat it as "long ago" rather than trust
+		// the clock, the same way the cooldowns do.
+		const auto clockWentBackwards = sinceLastDrink < 0.0f;
+
+		// Drinks stop stacking once the window lapses, so a pint nursed this morning doesn't still
+		// count tonight. Deliberately generous - see the setting for why.
+		if (a_state.drinksHad > 0 &&
+			(clockWentBackwards || sinceLastDrink >= settings.drinkStackWindowHours)) {
 			a_state.drinksHad = 0;
 		}
 
-		const auto shouldBeDrunk = Settings::Get().drunkEffects &&
+		// Leaving the tavern is what ends the evening. Inside, they keep their drink on regardless
+		// of the clock, because they're still ordering; once they're out and have been away from the
+		// bar a while, they sober up. Separate from the stacking window so drinks can accumulate
+		// slowly without leaving followers drunk half the day.
+		if (a_state.drinksHad > 0 && !SunHelm::IsInInn(&a_actor) &&
+			(clockWentBackwards || sinceLastDrink >= settings.soberUpHours)) {
+			a_state.drinksHad = 0;
+		}
+
+		const auto shouldBeDrunk = settings.drunkEffects &&
 		                           a_state.drinksHad >= SunHelm::DrinksBeforeDrunk();
 		if (shouldBeDrunk == a_state.drunk) {
 			return;  // Only touch the ability when it actually changes.

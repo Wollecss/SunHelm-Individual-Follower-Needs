@@ -75,7 +75,11 @@ void Settings::Load()
 	ReadInto(parsed, "selfCureWithPotions", g_data.selfCureWithPotions);
 	ReadInto(parsed, "consumeCooldownHours", g_data.consumeCooldownHours);
 	ReadInto(parsed, "purchaseCooldownHours", g_data.purchaseCooldownHours);
+	ReadInto(parsed, "aleCooldownHours", g_data.aleCooldownHours);
+	ReadInto(parsed, "alePreferenceChance", g_data.alePreferenceChance);
 	ReadInto(parsed, "socialDrinkChance", g_data.socialDrinkChance);
+	ReadInto(parsed, "drinkStackWindowHours", g_data.drinkStackWindowHours);
+	ReadInto(parsed, "soberUpHours", g_data.soberUpHours);
 
 	for (std::size_t need = 0; need < kNeedKeys.size(); ++need) {
 		ReadInto(parsed, kNeedKeys[need], g_data.notifyNeed[need]);
@@ -90,7 +94,13 @@ void Settings::Load()
 	// Zero is allowed for both cooldowns - that's the "let them drink themselves silly" setting.
 	g_data.consumeCooldownHours = std::clamp(g_data.consumeCooldownHours, 0.0f, 24.0f);
 	g_data.purchaseCooldownHours = std::clamp(g_data.purchaseCooldownHours, 0.0f, 24.0f);
+	g_data.aleCooldownHours = std::clamp(g_data.aleCooldownHours, 0.0f, 24.0f);
+	g_data.alePreferenceChance = std::clamp(g_data.alePreferenceChance, 0, 100);
 	g_data.socialDrinkChance = std::clamp(g_data.socialDrinkChance, 0, 100);
+	// A stacking window of zero would clear the count every tick and make drunkenness unreachable,
+	// so it starts at one hour rather than none.
+	g_data.drinkStackWindowHours = std::clamp(g_data.drinkStackWindowHours, 1.0f, 72.0f);
+	g_data.soberUpHours = std::clamp(g_data.soberUpHours, 0.0f, 72.0f);
 
 	logger::info("Settings loaded (tracking up to {} follower(s))", g_data.maxTracked);
 }
@@ -119,6 +129,10 @@ void Settings::Save()
 	out["selfCureWithPotions"] = g_data.selfCureWithPotions;
 	out["consumeCooldownHours"] = g_data.consumeCooldownHours;
 	out["purchaseCooldownHours"] = g_data.purchaseCooldownHours;
+	out["aleCooldownHours"] = g_data.aleCooldownHours;
+	out["alePreferenceChance"] = g_data.alePreferenceChance;
+	out["drinkStackWindowHours"] = g_data.drinkStackWindowHours;
+	out["soberUpHours"] = g_data.soberUpHours;
 	out["socialDrinkChance"] = g_data.socialDrinkChance;
 
 	for (std::size_t need = 0; need < kNeedKeys.size(); ++need) {

@@ -92,6 +92,10 @@ namespace
 			entry["active"] = follower.active;
 			entry["hunger"] = StageInfo(SunHelm::Need::kHunger, follower.hunger);
 			entry["thirst"] = StageInfo(SunHelm::Need::kThirst, follower.thirst);
+			// Reported because the drunk ability is otherwise only visible in the log at the moment
+			// it flips, which makes "how close are they" unanswerable while a test is running.
+			entry["drinks_had"] = follower.drinksHad;
+			entry["drunk"] = follower.drunk;
 			followers.push_back(std::move(entry));
 		}
 		out["followers"] = std::move(followers);
@@ -186,8 +190,12 @@ namespace
 				if (args.contains("thirst") && !args["thirst"].is_null()) {
 					thirst = args["thirst"].get<float>();
 				}
+				std::optional<int> drinks;
+				if (args.contains("drinks") && !args["drinks"].is_null()) {
+					drinks = args["drinks"].get<int>();
+				}
 
-				if (Followers::SetNeedsForTesting(name, hunger, thirst)) {
+				if (Followers::SetNeedsForTesting(name, hunger, thirst, drinks)) {
 					result = { { "ok", true } };
 				} else {
 					result = { { "ok", false }, { "error", "no tracked follower matched that name" } };
@@ -238,13 +246,14 @@ void DevBenchTools::Register()
 
 	dvb->RegisterTool("sunhelm_followers.set_need",
 		R"json({
-			"description": "Testing only: directly overwrites a tracked follower's hunger and/or thirst level by name, without waiting on game time.",
+			"description": "Testing only: directly overwrites a tracked follower's hunger, thirst and/or drink count by name, without waiting on game time.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {
 					"name": { "type": "string", "description": "Follower name, or a substring of it" },
 					"hunger": { "type": "number", "description": "New hunger level. 0 is well fed." },
-					"thirst": { "type": "number", "description": "New thirst level. 0 is quenched." }
+					"thirst": { "type": "number", "description": "New thirst level. 0 is quenched." },
+					"drinks": { "type": "integer", "description": "Drinks had since sobering up. Set it to SunHelm's drinks-before-drunk (3 by default) to have them drunk on the next tick, or 0 to sober them up. Refreshes the drink timestamp so the count isn't immediately discarded." }
 				},
 				"required": ["name"]
 			},

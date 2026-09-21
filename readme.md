@@ -147,11 +147,34 @@ Found under **SunHelm Follower Needs** in the SKSE menu. All settings are writte
 | Wait between meals | 0.25 hours | Game time before they eat or drink again. Zero removes the limit |
 | Buy food and drink at inns | On | Spends their own gold, at SunHelm's own prices |
 | Buy before raiding their own pack | Off | On means they'd rather spend coin than eat what they carry |
-| Buy ale | On | The cheap answer to thirst, and what people do in taverns |
+| Buy ale | On | What people order in taverns, and a cheap answer to thirst |
 | Ale can make them drunk | On | Uses SunHelm's own drunk effect and its own drink count |
 | Wait between purchases | 1 hour | Stops them emptying their purse into a bag of bread |
+| Time between rounds | 2 hours | How often they order another drink - see below |
+| Chance of ordering ale | 65% | What a thirsty follower asks for at the bar, rather than water |
 | Chance of a social drink | 25% | How often they buy a drink they don't actually need |
+| Drinks stack for | 12 hours | How long a drink keeps counting towards getting drunk |
+| Sober up after leaving | 4 hours | How long it lasts once they're out of the tavern |
 | Announcements | On | Per need, plus eating and drinking |
+
+### Tuning a night at the inn
+
+**"Time between rounds" is what a tavern evening costs.** A follower keeps ordering for as long as
+they're in there, so this setting, not the price of ale, decides how much of their purse an evening
+takes. At the default of two hours it's a few gold an hour - ambience. Drop it to half an hour and
+they'll drink themselves under the table in a fraction of the time, and pay for the privilege.
+
+Getting drunk on their own coin is deliberately the slow route: three drinks two hours apart is a
+proper night out. **If you just want a follower drunk, give them drinks** - in a tavern they'll work
+through what you hand them far faster than they'd ever buy it.
+
+**Keep "drinks stack for" above roughly three times the gap between rounds.** Drinks stop counting
+once the window lapses, so if rounds are further apart than the window allows for three of them, the
+count resets before they ever reach the third and they can never get drunk by buying. That's a valid
+setup if you want followers who simply never overdo it - just know it's what you've chosen.
+
+**They stay drunk while they're still inside**, however long that is, because they're still ordering.
+Walking out starts the sober-up timer. Set it to zero and they're sober the moment they step outside.
 
 The tracking limit defaults to 3 deliberately. Raising it is safe - tracking runs natively rather
 than in Papyrus, so there is no script lag - it simply means slightly more data in your save per

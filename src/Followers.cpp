@@ -338,7 +338,7 @@ namespace
 }
 
 bool Followers::SetNeedsForTesting(std::string_view a_nameSubstring, std::optional<float> a_hunger,
-	std::optional<float> a_thirst)
+	std::optional<float> a_thirst, std::optional<int> a_drinks)
 {
 	const auto needle = ToLowerCopy(a_nameSubstring);
 
@@ -352,6 +352,13 @@ bool Followers::SetNeedsForTesting(std::string_view a_nameSubstring, std::option
 		}
 		if (a_thirst) {
 			state.thirst = std::clamp(*a_thirst, 0.0f, SunHelm::MaxLevel(SunHelm::Need::kThirst));
+		}
+		if (a_drinks) {
+			state.drinksHad = std::max(0, *a_drinks);
+			// Without this the count is discarded before it can do anything: UpdateDrunkenness
+			// clears it when the last drink was outside the stacking window, and an untouched
+			// timestamp is whatever it was when they were hired.
+			state.lastDrinkHours = RE::Calendar::GetSingleton()->GetHoursPassed();
 		}
 		return true;
 	}

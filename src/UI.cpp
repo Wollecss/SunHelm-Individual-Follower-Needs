@@ -259,9 +259,38 @@ void __stdcall UI::Config::Render()
 		"rather watch them drink themselves under the table.");
 	SaveIfSliderReleased();
 
+	ImGuiMCP::SliderFloat("Time between rounds", &settings.aleCooldownHours, 0.0f, 12.0f, "%.2f hours");
+	ImGuiMCP::SetItemTooltip(
+		"How often a follower orders another drink, and the main thing deciding what a night at the "
+		"inn costs them - they'll keep ordering for as long as they're in there. Lower it if you "
+		"want livelier, pricier company. If you simply want a follower drunk, giving them drinks is "
+		"quicker than waiting on their purse.");
+	SaveIfSliderReleased();
+
+	ImGuiMCP::SliderInt("Chance of ordering ale", &settings.alePreferenceChance, 0, 100, "%d%%");
+	ImGuiMCP::SetItemTooltip(
+		"What a thirsty follower orders in a tavern. Ale only quenches half as much as water, so a "
+		"high setting means livelier company and thirstier followers. Zero means they always take "
+		"the sensible option.");
+	SaveIfSliderReleased();
+
 	ImGuiMCP::SliderInt("Chance of a social drink", &settings.socialDrinkChance, 0, 100, "%d%%");
 	ImGuiMCP::SetItemTooltip(
 		"How likely a follower in a tavern is to buy a drink they don't actually need.");
+	SaveIfSliderReleased();
+
+	ImGuiMCP::SliderFloat("Drinks stack for", &settings.drinkStackWindowHours, 1.0f, 24.0f, "%.1f hours");
+	ImGuiMCP::SetItemTooltip(
+		"How long a drink keeps counting towards getting drunk. Keep it comfortably above three "
+		"times the gap between rounds, or the count resets before they ever reach the third one and "
+		"they can never get drunk on their own.");
+	SaveIfSliderReleased();
+
+	ImGuiMCP::SliderFloat("Sober up after leaving", &settings.soberUpHours, 0.0f, 24.0f, "%.1f hours");
+	ImGuiMCP::SetItemTooltip(
+		"How long the drink lasts once they're out of the tavern. They stay drunk while they're "
+		"still inside, however long that is, because they're still ordering. Zero means they're "
+		"sober the moment they step outside.");
 	SaveIfSliderReleased();
 
 	ImGuiMCP::Spacing();

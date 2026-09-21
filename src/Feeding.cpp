@@ -231,12 +231,26 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 		}
 	}
 
+	// Thirst is the usual reason to drink, but not the only one. A follower in a tavern will finish
+	// a pint they bought for the company rather than the thirst - without this, the social drink
+	// bought one every half hour and never touched it, stockpiling ale while the drink counter sat
+	// still. Being drunk doesn't stop them: they carry on like anyone else at the bar, and the
+	// evening ends when they leave rather than when they hit a number. What paces it is the
+	// consumption cooldown and the fact that they only drink what they've bought.
+	const auto thirstyEnough =
+		SunHelm::StageOf(SunHelm::Need::kThirst, a_state.thirst) >= settings.drinkAtStage;
+	const auto sociallyDrinking =
+		settings.buyAlcohol && settings.drunkEffects && SunHelm::IsInInn(&a_actor);
+
 	if (settings.trackThirst && SunHelm::IsNeedEnabled(SunHelm::Need::kThirst) &&
-		CooldownElapsed(a_state, 1, nowHours) &&
-		SunHelm::StageOf(SunHelm::Need::kThirst, a_state.thirst) >= settings.drinkAtStage) {
+		CooldownElapsed(a_state, 1, nowHours) && (thirstyEnough || sociallyDrinking)) {
+		// When it's only sociability driving this, ale is the point - water would satisfy nothing.
 		static constexpr std::array kDrinkKinds{ SunHelm::FoodKind::kDrink,
 			SunHelm::FoodKind::kWaterskin, SunHelm::FoodKind::kAlcohol };
-		const auto candidate = BestCandidate(a_actor, SunHelm::ThirstRestore, kDrinkKinds);
+		static constexpr std::array kSocialKinds{ SunHelm::FoodKind::kAlcohol };
+		const auto candidate = thirstyEnough
+		                           ? BestCandidate(a_actor, SunHelm::ThirstRestore, kDrinkKinds)
+		                           : BestCandidate(a_actor, SunHelm::ThirstRestore, kSocialKinds);
 
 		if (candidate.object) {
 			Consume(a_actor, candidate);
@@ -255,7 +269,10 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 				RE::DebugNotification(
 					std::format("{} drinks {}.", a_state.name, ItemLabel(candidate.object)).c_str());
 			}
-		} else {
+		} else if (thirstyEnough) {
+			// Only worth saying when thirst actually drove this. A follower who merely fancied a
+			// pint and hasn't got one is not out of supplies, and saying so would be a lie that
+			// also buries the real warnings.
 			const auto stage = SunHelm::StageOf(SunHelm::Need::kThirst, a_state.thirst);
 			if (a_state.outOfSupplyNotifiedStage[1] != stage) {
 				a_state.outOfSupplyNotifiedStage[1] = stage;

@@ -33,7 +33,11 @@ namespace Followers
 		// Same idea for buying at an inn, but on a longer leash. Buying is attempted every tick
 		// while consumption is rate-limited, so without this a follower would stockpile food and
 		// empty their purse rather than buying a meal, eating it, and getting on with the evening.
-		float lastPurchaseHours[2]{ 0.0f, 0.0f };
+		//
+		// Ale has a slot of its own rather than sharing the drink slot, because rounds come faster
+		// than meals do. Sharing it meant buying water locked out ale for a full hour, which made
+		// getting drunk almost unreachable: three drinks are needed inside a four-hour window.
+		float lastPurchaseHours[3]{ 0.0f, 0.0f, 0.0f };
 
 		// Drinks since they last sobered up, and when the most recent one was. Drives SunHelm's own
 		// drunk ability once they've had enough.
@@ -71,10 +75,15 @@ namespace Followers
 	// Main thread only: the visitor is handed a live actor to read and modify.
 	void ForEachTracked(const std::function<void(State&, RE::Actor&)>& a_visitor);
 
-	// Overwrites a tracked follower's hunger/thirst by name (case-insensitive substring match).
-	// Pure container access under the state lock - no engine calls - so this is safe to call from
-	// any thread, including DevBench's listener thread, without marshaling to the main thread.
+	// Overwrites a tracked follower's hunger/thirst/drink count by name (case-insensitive substring
+	// match). Pure container access under the state lock - no engine calls - so this is safe to call
+	// from any thread, including DevBench's listener thread, without marshaling to the main thread.
 	// Returns false if no tracked follower matched.
+	//
+	// a_drinks sets the count that drives SunHelm's drunk ability, so a test doesn't have to sit in
+	// a tavern waiting on a 25% roll to come up three times. The drink timestamp is refreshed with
+	// it, or the next tick would see a stale one, decide they'd sobered up hours ago, and reset the
+	// count to zero before anything could act on it.
 	bool SetNeedsForTesting(std::string_view a_nameSubstring, std::optional<float> a_hunger,
-		std::optional<float> a_thirst);
+		std::optional<float> a_thirst, std::optional<int> a_drinks = std::nullopt);
 }
