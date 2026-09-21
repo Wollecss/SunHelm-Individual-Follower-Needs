@@ -85,7 +85,9 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	SKSE::Init(a_skse);
 	InitializeLogging();
 
-	logger::info("SunHelm Follower Needs v{} loaded", SKSE::PluginDeclaration::GetSingleton()->GetVersion().string());
+	// Dotted separator: REL::Version::string() defaults to dashes, which reads oddly for a release.
+	logger::info("SunHelm Follower Needs v{} loaded",
+		SKSE::PluginDeclaration::GetSingleton()->GetVersion().string("."sv));
 
 	// Before anything reads a setting. Only touches the filesystem, so it's safe this early.
 	Settings::Load();
