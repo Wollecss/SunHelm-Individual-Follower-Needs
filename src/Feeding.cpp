@@ -43,7 +43,7 @@ namespace
 	// happened to iterate first - the map has no meaningful ordering to break ties by anyway.
 	template <class RestoreFn>
 	Candidate BestCandidate(RE::Actor& a_actor, RestoreFn a_restoreOf,
-		std::initializer_list<SunHelm::FoodKind> a_wanted)
+		std::span<const SunHelm::FoodKind> a_wanted)
 	{
 		Candidate best;
 		for (const auto& [object, entry] : a_actor.GetInventory()) {
@@ -59,6 +59,65 @@ namespace
 			}
 		}
 		return best;
+	}
+
+	// SunHelm's own Ravenous threshold - the point at which a follower stops being picky.
+	constexpr int kDesperateStage = 4;
+
+	// Mirrors what _SHEatDetection does to the player for raw food: with diseases on it's a 30%
+	// chance of food poisoning, and with them off it's a flat bite of health instead.
+	void ApplyRawFoodRisk(const Followers::State& a_state, RE::Actor& a_actor)
+	{
+		if (!SunHelm::RawFoodDamageEnabled() || SunHelm::IsImmuneToFoodPoisoning(&a_actor)) {
+			return;
+		}
+
+		static std::mt19937                       engine{ std::random_device{}() };
+		static std::uniform_int_distribution<int> roll{ 0, 100 };
+
+		if (!SunHelm::DiseasesEnabled()) {
+			static std::uniform_int_distribution<int> damage{ 0, 25 };
+			a_actor.AsActorValueOwner()->RestoreActorValue(
+				RE::ACTOR_VALUE_MODIFIER::kDamage, RE::ActorValue::kHealth, -static_cast<float>(damage(engine)));
+			return;
+		}
+
+		if (roll(engine) >= 30) {
+			return;
+		}
+
+		auto* poisoning = SunHelm::FoodPoisoningSpell();
+		if (poisoning && !a_actor.HasSpell(poisoning)) {
+			a_actor.AddSpell(poisoning);
+			logger::info("{} caught food poisoning from raw food", a_state.name);
+			if (Settings::Get().notifyConsumption) {
+				RE::DebugNotification(
+					std::format("{} looks unwell.", a_state.name).c_str());
+			}
+		}
+	}
+
+	// Drinking a cure potion they're carrying. Deliberately not on the consumption cooldown: being
+	// ill isn't a craving, and making someone stay sick because they ate recently would be odd.
+	bool TryCureSelf(const Followers::State& a_state, RE::Actor& a_actor)
+	{
+		if (!Settings::Get().selfCureWithPotions || !SunHelm::IsDiseased(&a_actor)) {
+			return false;
+		}
+
+		for (const auto& [object, entry] : a_actor.GetInventory()) {
+			if (!object || entry.first <= 0 || !SunHelm::IsCureDiseasePotion(object)) {
+				continue;
+			}
+			RE::ActorEquipManager::GetSingleton()->EquipObject(&a_actor, object);
+			const auto cured = SunHelm::CureDiseases(&a_actor);
+			logger::info("{} drank a cure potion ({} ailment(s) cured)", a_state.name, cured);
+			if (Settings::Get().notifyConsumption) {
+				RE::DebugNotification(std::format("{} looks better.", a_state.name).c_str());
+			}
+			return true;
+		}
+		return false;
 	}
 
 	void Consume(RE::Actor& a_actor, const Candidate& a_candidate)
@@ -87,18 +146,35 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 
 	const auto nowHours = RE::Calendar::GetSingleton()->GetHoursPassed();
 
+	// Before anything else: being ill is worth fixing ahead of being peckish.
+	TryCureSelf(a_state, a_actor);
+
+	const auto hungerStage = SunHelm::StageOf(SunHelm::Need::kHunger, a_state.hunger);
+
 	if (settings.trackHunger && SunHelm::IsNeedEnabled(SunHelm::Need::kHunger) &&
-		CooldownElapsed(a_state, 0, nowHours) &&
-		SunHelm::StageOf(SunHelm::Need::kHunger, a_state.hunger) >= settings.eatAtStage) {
-		const auto candidate = BestCandidate(a_actor, SunHelm::HungerRestore,
-			{ SunHelm::FoodKind::kLight, SunHelm::FoodKind::kMedium, SunHelm::FoodKind::kHeavy,
-				SunHelm::FoodKind::kSoup });
+		CooldownElapsed(a_state, 0, nowHours) && hungerStage >= settings.eatAtStage) {
+		auto wanted = std::vector{ SunHelm::FoodKind::kLight, SunHelm::FoodKind::kMedium,
+			SunHelm::FoodKind::kHeavy, SunHelm::FoodKind::kSoup };
+
+		// Raw meat is a last resort, not a meal: only once they're Ravenous, and only after the
+		// proper food above has come up empty, since BestCandidate ranks on restore value and raw
+		// food is worth nothing.
+		const auto desperate = settings.eatRawWhenDesperate && hungerStage >= kDesperateStage;
+		if (desperate) {
+			wanted.push_back(SunHelm::FoodKind::kRaw);
+		}
+
+		const auto candidate = BestCandidate(a_actor, SunHelm::HungerRestore, wanted);
 
 		if (candidate.object) {
 			Consume(a_actor, candidate);
 			a_state.lastConsumedHours[0] = nowHours;
-			logger::info("{} ate '{}' (-{:.0f} hunger, from {:.1f})", a_state.name,
-				ItemLabel(candidate.object), candidate.restore, a_state.hunger);
+			logger::info("{} ate{} '{}' (-{:.0f} hunger, from {:.1f})", a_state.name,
+				candidate.kind == SunHelm::FoodKind::kRaw ? " raw" : "", ItemLabel(candidate.object),
+				candidate.restore, a_state.hunger);
+			if (candidate.kind == SunHelm::FoodKind::kRaw) {
+				ApplyRawFoodRisk(a_state, a_actor);
+			}
 			a_state.hunger = std::clamp(
 				a_state.hunger - candidate.restore, 0.0f, SunHelm::MaxLevel(SunHelm::Need::kHunger));
 
@@ -132,8 +208,9 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 	if (settings.trackThirst && SunHelm::IsNeedEnabled(SunHelm::Need::kThirst) &&
 		CooldownElapsed(a_state, 1, nowHours) &&
 		SunHelm::StageOf(SunHelm::Need::kThirst, a_state.thirst) >= settings.drinkAtStage) {
-		const auto candidate = BestCandidate(a_actor, SunHelm::ThirstRestore,
-			{ SunHelm::FoodKind::kDrink, SunHelm::FoodKind::kWaterskin, SunHelm::FoodKind::kAlcohol });
+		static constexpr std::array kDrinkKinds{ SunHelm::FoodKind::kDrink,
+			SunHelm::FoodKind::kWaterskin, SunHelm::FoodKind::kAlcohol };
+		const auto candidate = BestCandidate(a_actor, SunHelm::ThirstRestore, kDrinkKinds);
 
 		if (candidate.object) {
 			Consume(a_actor, candidate);

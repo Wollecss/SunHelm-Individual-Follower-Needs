@@ -42,6 +42,13 @@ namespace Settings
 		// Whether enough drinks actually makes them drunk, using SunHelm's own drunk spell.
 		bool drunkEffects{ true };
 
+		// A Ravenous follower will eat raw meat rather than starve, at SunHelm's own risk of food
+		// poisoning. Anything less desperate and they stay picky.
+		bool eatRawWhenDesperate{ true };
+		// Drinking a cure potion out of their own pack when ill. Costs nothing to leave on: they
+		// can only do it if the player gave them one.
+		bool selfCureWithPotions{ true };
+
 		// Minimum game time between one follower's meals, and separately between their drinks.
 		// Without it, consumption is attempted every tick and a Ravenous follower empties their
 		// pack in seconds. At a default timescale 0.25 is roughly 45 real seconds.

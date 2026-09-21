@@ -71,6 +71,8 @@ void Settings::Load()
 	ReadInto(parsed, "preferBuying", g_data.preferBuying);
 	ReadInto(parsed, "buyAlcohol", g_data.buyAlcohol);
 	ReadInto(parsed, "drunkEffects", g_data.drunkEffects);
+	ReadInto(parsed, "eatRawWhenDesperate", g_data.eatRawWhenDesperate);
+	ReadInto(parsed, "selfCureWithPotions", g_data.selfCureWithPotions);
 	ReadInto(parsed, "consumeCooldownHours", g_data.consumeCooldownHours);
 	ReadInto(parsed, "purchaseCooldownHours", g_data.purchaseCooldownHours);
 	ReadInto(parsed, "socialDrinkChance", g_data.socialDrinkChance);
@@ -113,6 +115,8 @@ void Settings::Save()
 	out["preferBuying"] = g_data.preferBuying;
 	out["buyAlcohol"] = g_data.buyAlcohol;
 	out["drunkEffects"] = g_data.drunkEffects;
+	out["eatRawWhenDesperate"] = g_data.eatRawWhenDesperate;
+	out["selfCureWithPotions"] = g_data.selfCureWithPotions;
 	out["consumeCooldownHours"] = g_data.consumeCooldownHours;
 	out["purchaseCooldownHours"] = g_data.purchaseCooldownHours;
 	out["socialDrinkChance"] = g_data.socialDrinkChance;

@@ -50,9 +50,15 @@ namespace
 		RE::TESGlobal* numDrinks{ nullptr };
 
 		RE::BGSKeyword*     locTypeInn{ nullptr };
+		RE::BGSKeyword*     beastRace{ nullptr };
+		RE::BGSKeyword*     vampire{ nullptr };
+		RE::TESRace*        woodElf{ nullptr };
 		RE::TESBoundObject* gold{ nullptr };
 		RE::TESBoundObject* waterBottle{ nullptr };
 		RE::SpellItem*      drunkSpell{ nullptr };
+		RE::SpellItem*      foodPoisoning{ nullptr };
+		RE::TESGlobal*      diseasesEnabled{ nullptr };
+		RE::TESGlobal*      rawDamage{ nullptr };
 
 		RE::BGSKeyword* lightFood{ nullptr };
 		RE::BGSKeyword* mediumFood{ nullptr };
@@ -109,6 +115,8 @@ namespace
 			{ "_SHPauseNeedsCombat"sv, &g_forms.pauseCombat },
 			{ "_SHPauseNeedsDialogue"sv, &g_forms.pauseDialogue },
 			{ "_SHNumDrinks"sv, &g_forms.numDrinks },
+			{ "_SHDiseasesEnabled"sv, &g_forms.diseasesEnabled },
+			{ "_SHRawDamage"sv, &g_forms.rawDamage },
 		};
 
 		for (auto* global : RE::TESDataHandler::GetSingleton()->GetFormArray<RE::TESGlobal>()) {
@@ -144,6 +152,9 @@ namespace
 			{ "VendorItemFoodRaw"sv, &g_forms.rawFood },
 			// Vanilla, used to tell whether a follower is somewhere they could buy a meal.
 			{ "LocTypeInn"sv, &g_forms.locTypeInn },
+			// Vanilla, for SunHelm's food-poisoning immunity rules.
+			{ "IsBeastRace"sv, &g_forms.beastRace },
+			{ "Vampire"sv, &g_forms.vampire },
 		};
 
 		for (auto* keyword : RE::TESDataHandler::GetSingleton()->GetFormArray<RE::BGSKeyword>()) {
@@ -191,6 +202,17 @@ namespace
 		g_forms.gold = RE::TESForm::LookupByID<RE::TESBoundObject>(0x0000000F);
 		g_forms.waterBottle = handler->LookupForm<RE::TESBoundObject>(0x07AA96, SunHelm::kPluginName);
 		g_forms.drunkSpell = handler->LookupForm<RE::SpellItem>(0x377265, SunHelm::kPluginName);
+		g_forms.foodPoisoning = handler->LookupForm<RE::SpellItem>(0x6410BF, SunHelm::kPluginName);
+
+		// Races keep their EditorID at runtime, so SunHelm's Wood Elf exception costs nothing.
+		for (auto* race : handler->GetFormArray<RE::TESRace>()) {
+			if (race) {
+				if (const auto* editorID = race->GetFormEditorID(); editorID && "WoodElfRace"sv == editorID) {
+					g_forms.woodElf = race;
+					break;
+				}
+			}
+		}
 		if (!g_forms.gold || !g_forms.waterBottle || !g_forms.drunkSpell) {
 			logger::error("Could not resolve gold / water bottle / drunk ability - buying at inns "
 						  "will be unavailable");
@@ -419,6 +441,13 @@ float SunHelm::HungerRestore(FoodKind a_kind)
 		return 75.0f;
 	case FoodKind::kHeavy:
 		return 125.0f;
+	case FoodKind::kRaw:
+		// Deliberately just under light food, so properly prepared food always wins the comparison
+		// and raw meat is only ever reached when there's nothing else. SunHelm itself only gives
+		// raw food a value when the item also happens to sit in one of its cooked-food lists, which
+		// would leave a follower gnawing raw meat for no benefit at all - an irrational trade
+		// against the poisoning risk, and not a decision worth modelling.
+		return 35.0f;
 	default:
 		return 0.0f;
 	}
@@ -506,6 +535,103 @@ int SunHelm::DrinksBeforeDrunk()
 {
 	// SunHelm's MCM default is 3; clamped so a zero doesn't mean "drunk on an empty stomach".
 	return std::max(1, static_cast<int>(std::lround(ReadGlobal(g_forms.numDrinks, 3.0f))));
+}
+
+namespace
+{
+	// Diseases are identified by spell type rather than by any particular mod's form list, so a
+	// vanilla rockjoint, an Immersive Diseases NPC variant and SunHelm's own food poisoning are all
+	// recognised without this plugin knowing they exist.
+	bool IsDiseaseSpell(RE::SpellItem* a_spell)
+	{
+		return a_spell && a_spell->GetSpellType() == RE::MagicSystem::SpellType::kDisease;
+	}
+}
+
+bool SunHelm::IsDiseased(RE::Actor* a_actor)
+{
+	if (!a_actor) {
+		return false;
+	}
+	for (auto* spell : a_actor->GetActorRuntimeData().addedSpells) {
+		if (IsDiseaseSpell(spell)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+int SunHelm::CureDiseases(RE::Actor* a_actor)
+{
+	if (!a_actor) {
+		return 0;
+	}
+
+	// Collected first: removing while walking the actor's own spell list would invalidate it.
+	std::vector<RE::SpellItem*> diseases;
+	for (auto* spell : a_actor->GetActorRuntimeData().addedSpells) {
+		if (IsDiseaseSpell(spell)) {
+			diseases.push_back(spell);
+		}
+	}
+	for (auto* disease : diseases) {
+		a_actor->RemoveSpell(disease);
+	}
+	return static_cast<int>(diseases.size());
+}
+
+bool SunHelm::IsCureDiseasePotion(RE::TESBoundObject* a_object)
+{
+	// Matched on the effect archetype, so any mod's cure potion works, not just vanilla's.
+	auto* potion = a_object ? a_object->As<RE::AlchemyItem>() : nullptr;
+	if (!potion) {
+		return false;
+	}
+	for (auto* effect : potion->effects) {
+		if (effect && effect->baseEffect &&
+			effect->baseEffect->HasArchetype(RE::EffectSetting::Archetype::kCureDisease)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool SunHelm::DiseasesEnabled()
+{
+	return ReadGlobal(g_forms.diseasesEnabled, 1.0f) != 0.0f;
+}
+
+bool SunHelm::RawFoodDamageEnabled()
+{
+	return ReadGlobal(g_forms.rawDamage, 1.0f) != 0.0f;
+}
+
+bool SunHelm::IsImmuneToFoodPoisoning(RE::Actor* a_actor)
+{
+	if (!a_actor) {
+		return true;
+	}
+	auto* race = a_actor->GetRace();
+	if (!race) {
+		return false;
+	}
+	// SunHelm also exempts werewolves, but that's read from its own player-only state, so it has no
+	// follower equivalent to check.
+	if (g_forms.beastRace && race->HasKeyword(g_forms.beastRace)) {
+		return true;
+	}
+	if (g_forms.woodElf && race == g_forms.woodElf) {
+		return true;
+	}
+	if (g_forms.vampire && race->HasKeyword(g_forms.vampire)) {
+		return true;
+	}
+	return false;
+}
+
+RE::SpellItem* SunHelm::FoodPoisoningSpell()
+{
+	return g_forms.foodPoisoning;
 }
 
 RE::SpellItem* SunHelm::StageSpell(Need a_need, int a_stage)

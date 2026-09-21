@@ -219,6 +219,15 @@ void __stdcall UI::Config::Render()
 	stageCombo("Drink once they are", &settings.drinkAtStage, SunHelm::Need::kThirst);
 	ImGuiMCP::SetItemTooltip("The thirst stage at which a follower will reach for a drink.");
 
+	Toggle("Eat raw food when desperate", &settings.eatRawWhenDesperate);
+	ImGuiMCP::SetItemTooltip(
+		"Once Ravenous, a follower will eat raw meat rather than starve - and runs SunHelm's own "
+		"risk of food poisoning for it. Below Ravenous they stay picky.");
+	Toggle("Drink their own cure potions", &settings.selfCureWithPotions);
+	ImGuiMCP::SetItemTooltip(
+		"An ill follower carrying a cure disease potion will drink it. They can only do this if "
+		"you gave them one.");
+
 	ImGuiMCP::SliderFloat("Wait between meals", &settings.consumeCooldownHours, 0.0f, 6.0f, "%.2f hours");
 	ImGuiMCP::SetItemTooltip(
 		"Game time a follower waits before eating or drinking again. Without a gap they work "

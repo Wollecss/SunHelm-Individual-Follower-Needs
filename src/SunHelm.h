@@ -76,6 +76,21 @@ namespace SunHelm
 	RE::SpellItem* DrunkSpell();
 	int            DrinksBeforeDrunk();
 
+	// Disease handling is deliberately generic - matched on spell type and effect archetype rather
+	// than on any particular mod's forms - so vanilla, Immersive Diseases and SunHelm's own
+	// water-borne diseases are all recognised and cured without knowing anything about them.
+	bool IsDiseased(RE::Actor* a_actor);
+	int  CureDiseases(RE::Actor* a_actor);  // returns how many were removed
+	bool IsCureDiseasePotion(RE::TESBoundObject* a_object);
+
+	// SunHelm's own toggles for whether raw food carries a risk at all, and what kind.
+	bool DiseasesEnabled();
+	bool RawFoodDamageEnabled();
+
+	// Mirrors SunHelm's ImmuneFoodPoisoning: beast races, Wood Elves and vampires shrug it off.
+	bool IsImmuneToFoodPoisoning(RE::Actor* a_actor);
+	RE::SpellItem* FoodPoisoningSpell();
+
 	RE::SpellItem* StageSpell(Need a_need, int a_stage);
 
 	// Which stage ability the actor is actually carrying for this need right now, or -1 for none.

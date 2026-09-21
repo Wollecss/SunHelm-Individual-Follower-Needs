@@ -20,6 +20,7 @@
 #include <initializer_list>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
