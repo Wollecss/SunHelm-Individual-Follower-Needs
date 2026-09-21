@@ -68,7 +68,12 @@ namespace
 bool Persistence::Resolve()
 {
 	auto* handler = RE::TESDataHandler::GetSingleton();
-	if (!handler || !handler->LookupLoadedModByName(kPluginName)) {
+	// Both lists have to be checked. ESL-flagged plugins live in a separate "light" load order, so
+	// LookupLoadedModByName alone silently stops finding this plugin the moment it is flagged -
+	// which is exactly what happened when it was, disabling persistence without any other symptom.
+	const auto loaded = handler && (handler->LookupLoadedModByName(kPluginName) ||
+									   handler->LookupLoadedLightModByName(kPluginName));
+	if (!loaded) {
 		logger::warn("{} is not loaded - follower needs will not survive a save/load", kPluginName);
 		g_available = false;
 		return false;

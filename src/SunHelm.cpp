@@ -198,11 +198,26 @@ namespace
 		g_forms.foodIgnoreList = list(0x09E19D, "_SHFoodIgnoreList");
 		g_forms.waterskinList = list(0x4E3ABA, "_SHWaterskins");
 
-		// Gold is vanilla and always present. The water bottle and drunk ability are SunHelm's own.
-		g_forms.gold = RE::TESForm::LookupByID<RE::TESBoundObject>(0x0000000F);
-		g_forms.waterBottle = handler->LookupForm<RE::TESBoundObject>(0x07AA96, SunHelm::kPluginName);
+		// Looked up as their concrete types, NOT as TESBoundObject. The templated lookups compare
+		// against T::FORMTYPE, and TESBoundObject inherits FormType::None from TESForm - so asking
+		// for one by that base type always returns null, silently.
+		g_forms.gold = RE::TESForm::LookupByID<RE::TESObjectMISC>(0x0000000F);
+		g_forms.waterBottle = handler->LookupForm<RE::AlchemyItem>(0x07AA96, SunHelm::kPluginName);
 		g_forms.drunkSpell = handler->LookupForm<RE::SpellItem>(0x377265, SunHelm::kPluginName);
 		g_forms.foodPoisoning = handler->LookupForm<RE::SpellItem>(0x6410BF, SunHelm::kPluginName);
+
+		// Named individually: a lumped "one of these three failed" message costs a whole test cycle
+		// to narrow down.
+		const auto require = [](const void* a_form, const char* a_what) {
+			if (!a_form) {
+				logger::error("Could not resolve {}", a_what);
+			}
+		};
+		require(g_forms.gold, "vanilla Gold001 - followers cannot buy anything");
+		require(g_forms.waterBottle, "SunHelm's water bottle - followers cannot buy water");
+		require(g_forms.drunkSpell, "SunHelm's drunk ability - followers cannot get drunk");
+		require(g_forms.foodPoisoning, "SunHelm's food poisoning - raw food carries no risk");
+		require(g_forms.locTypeInn, "vanilla LocTypeInn - inns cannot be detected");
 
 		// Races keep their EditorID at runtime, so SunHelm's Wood Elf exception costs nothing.
 		for (auto* race : handler->GetFormArray<RE::TESRace>()) {
@@ -213,11 +228,6 @@ namespace
 				}
 			}
 		}
-		if (!g_forms.gold || !g_forms.waterBottle || !g_forms.drunkSpell) {
-			logger::error("Could not resolve gold / water bottle / drunk ability - buying at inns "
-						  "will be unavailable");
-		}
-
 		int missingSpells = 0;
 		for (std::size_t need = 0; need < kNeedCount; ++need) {
 			for (std::size_t stage = 0; stage < kStageCount; ++stage) {
@@ -259,7 +269,11 @@ namespace
 bool SunHelm::Resolve()
 {
 	auto* handler = RE::TESDataHandler::GetSingleton();
-	if (!handler || !handler->LookupLoadedModByName(kPluginName)) {
+	// Checked against both load orders: SunHelm ships as a regular plugin, but someone compacting
+	// it into an ESL shouldn't silently turn this whole mod off.
+	const auto sunHelmLoaded = handler && (handler->LookupLoadedModByName(kPluginName) ||
+											  handler->LookupLoadedLightModByName(kPluginName));
+	if (!sunHelmLoaded) {
 		logger::warn("SunHelmSurvival.esp is not loaded - follower needs will stay idle");
 		g_forms.available = false;
 		return false;
