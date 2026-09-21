@@ -63,6 +63,11 @@ namespace SunHelm
 
 	RE::SpellItem* StageSpell(Need a_need, int a_stage);
 
+	// Which stage ability the actor is actually carrying for this need right now, or -1 for none.
+	// Reads the actor's spell list rather than what we believe we applied, so it can catch the two
+	// disagreeing.
+	int AppliedStageOn(RE::Actor* a_actor, Need a_need);
+
 	// Applies the stage's ability and removes the other five, so an actor only ever carries one
 	// ability per need.
 	void ApplyStageSpell(RE::Actor* a_actor, Need a_need, int a_stage);

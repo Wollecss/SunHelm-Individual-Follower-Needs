@@ -392,6 +392,20 @@ RE::SpellItem* SunHelm::StageSpell(Need a_need, int a_stage)
 	return g_forms.stageSpells[Index(a_need)][static_cast<std::size_t>(a_stage)];
 }
 
+int SunHelm::AppliedStageOn(RE::Actor* a_actor, Need a_need)
+{
+	if (!a_actor) {
+		return -1;
+	}
+	for (std::size_t stage = 0; stage < kStageCount; ++stage) {
+		auto* spell = g_forms.stageSpells[Index(a_need)][stage];
+		if (spell && a_actor->HasSpell(spell)) {
+			return static_cast<int>(stage);
+		}
+	}
+	return -1;
+}
+
 void SunHelm::ApplyStageSpell(RE::Actor* a_actor, Need a_need, int a_stage)
 {
 	if (!a_actor) {

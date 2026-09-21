@@ -85,11 +85,41 @@ namespace
 		return out;
 	}
 
+	// Which stage ability each tracked follower is actually carrying, read off the actor rather
+	// than from what we think we applied - so a mismatch between the two is visible instead of
+	// assumed away. Needs the main thread because it touches actors.
+	std::unordered_map<RE::FormID, json> CollectAppliedAbilities()
+	{
+		std::unordered_map<RE::FormID, json> out;
+		RunOnMainThreadBlocking(
+			[&out]() {
+				Followers::ForEachTracked([&out](Followers::State& a_state, RE::Actor& a_actor) {
+					json entry;
+					for (const auto need : SunHelm::kAllNeeds) {
+						entry[std::string(SunHelm::NeedName(need))] =
+							SunHelm::AppliedStageOn(&a_actor, need);
+					}
+					out[a_state.formID] = std::move(entry);
+				});
+			},
+			std::chrono::milliseconds(5000));
+		return out;
+	}
+
 	void StatusHandler(void* /*a_ctx*/, const char* /*a_argsJson*/, void* a_sink, DevBenchAPI::WriteFn a_write)
 	{
-		// Pure reads of our own mutex-guarded state and plain TESGlobal floats - no engine call
-		// that requires the main thread, so this answers directly from the listener thread.
-		a_write(a_sink, BuildStatus().dump().c_str());
+		const auto abilities = CollectAppliedAbilities();
+
+		auto out = BuildStatus();
+		for (auto& follower : out["followers"]) {
+			const auto formID = static_cast<RE::FormID>(
+				std::stoul(follower["formID"].get<std::string>(), nullptr, 16));
+			if (const auto it = abilities.find(formID); it != abilities.end()) {
+				follower["applied_abilities"] = it->second;
+			}
+		}
+
+		a_write(a_sink, out.dump().c_str());
 	}
 
 	void SetNeedHandler(void* /*a_ctx*/, const char* a_argsJson, void* a_sink, DevBenchAPI::WriteFn a_write)
