@@ -25,6 +25,16 @@ inventory for something SunHelm recognises as food or drink and consume it throu
 consumption path - the item is genuinely used up and the matching animation plays. A cooldown stops
 them working through an entire pack in one go.
 
+**They buy their own food and drink at inns.** Inside an inn, a hungry or thirsty follower spends
+their *own* gold on a meal, water or ale, at the prices SunHelm charges you at the same innkeepers.
+Most followers carry very little coin, so fund them if you want them self-sufficient on the road -
+and they'll occasionally buy a drink in a tavern simply because they're in one. Enough of those and
+they'll get drunk, using SunHelm's own drunk effect.
+
+**They can get sick.** Once Ravenous, a follower will eat raw meat rather than starve, and runs
+SunHelm's own risk of food poisoning for it. An ill follower carrying a cure disease potion will
+drink it themselves - so a few potions in their pack is real insurance.
+
 **Fatigue and cold mirror the player.** A follower is as tired and as cold as you are. This is a
 design decision rather than a limitation: the player's existing survival routine covers the whole
 party without micromanagement.
@@ -132,6 +142,15 @@ Found under **SunHelm Follower Needs** in the SKSE menu. All settings are writte
 | Needs can damage health | **Off** | Opt-in. Losing a companion to starvation is a harsh failure |
 | Followers feed themselves | On | Off means they only improve when fed by the player |
 | Eat / drink once they are | Peckish / Thirsty | How bad it gets before they act |
+| Eat raw food when desperate | On | Only once Ravenous, at SunHelm's risk of food poisoning |
+| Drink their own cure potions | On | An ill follower uses a cure potion you gave them |
+| Wait between meals | 0.25 hours | Game time before they eat or drink again. Zero removes the limit |
+| Buy food and drink at inns | On | Spends their own gold, at SunHelm's own prices |
+| Buy before raiding their own pack | Off | On means they'd rather spend coin than eat what they carry |
+| Buy ale | On | The cheap answer to thirst, and what people do in taverns |
+| Ale can make them drunk | On | Uses SunHelm's own drunk effect and its own drink count |
+| Wait between purchases | 1 hour | Stops them emptying their purse into a bag of bread |
+| Chance of a social drink | 25% | How often they buy a drink they don't actually need |
 | Announcements | On | Per need, plus eating and drinking |
 
 The tracking limit defaults to 3 deliberately. Raising it is safe - tracking runs natively rather
@@ -142,8 +161,12 @@ tracked follower. Ten is the hard ceiling, set by the number of storage slots in
 
 ## Known limitations
 
-- **Followers only drink from their own inventory.** They cannot drink from rivers, wells or
-  fountains the way the player can. Give them waterskins or bottled water.
+- **Outside an inn, followers only consume what they're carrying.** They cannot drink from rivers,
+  wells or fountains the way the player can. Give them waterskins or bottled water for the road -
+  inns are the one place they can supply themselves.
+- **Buying needs gold in their pocket, not yours.** Most vanilla followers carry almost nothing, so
+  this stays invisible until you fund them. The log says explicitly when one wanted a meal and
+  couldn't afford it.
 - **Humanoid followers only.** Animal companions are not tracked.
 - **Food must be something SunHelm recognises.** Unrecognised food doesn't feed followers - but it
   doesn't feed the player either, so this fails in the same direction SunHelm does.
