@@ -27,6 +27,12 @@ SpriggitSource:
 ModKey: $PLUGIN
 GameRelease: SkyrimSE
 ModHeader:
+  # "Small" is Mutagen's name for the ESL / light-master flag, so this doesn't eat one of the 254
+  # regular load order slots. Valid because every record here lives in 0x800-0xFFF, the range an
+  # ESL is confined to. Flagging changes the records' runtime FormIDs to FExxx800, which is only
+  # harmless because the plugin resolves these globals by EditorID and never by FormID.
+  Flags:
+  - Small
   Stats:
     Version: 1.7
   Author: Wollecs
