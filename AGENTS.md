@@ -45,20 +45,36 @@ destroy it, the task wrote into freed memory. That crashed the game
 (`EXCEPTION_ACCESS_VIOLATION` reading `0xFFFFFFFFFFFFFFFF`, faulting on an unordered_map bucket
 lookup). Use `shared_ptr`-owned state and return by value. Never capture a local by reference.
 
-**5. Diagnostic code gets the same actor guards as game code.** `Needs::Update()` keeps every deep
-engine read - inventory, location, purchases - behind `State::active` (`Is3DLoaded()` and not
-waiting). `Followers::ForEachTracked` visits *every* tracked follower, loaded or not, so a visitor
-that skips the gate reads state an unloaded actor doesn't have. The DevBench status tool did exactly
-that - `GetGoldAmount()`, `GetCurrentLocation()` and the spell list on unloaded followers - and
-crashed the game twice, faulting inside the engine where no null check of ours could have helped.
-The poll loop looked innocent because it was correctly gated; only calling the *diagnostic* killed
-the game. Report liveness as a field rather than skipping the follower: "not loaded" and "nothing
-applied" are different answers.
+**5. Never call `RE::Actor::GetGoldAmount()`. Use `SunHelm::GoldAmount()`.** `GetGoldAmount()`
+resolves the gold form through `BGSDefaultObjectManager::GetObject(kGold)`, which indexes a parallel
+`objectInit[]` bool array off the manager singleton. On this setup that read lands outside the
+process and faults *inside the engine*, so nothing on our side can guard it. It crashed the game
+three times. `SunHelm::GoldAmount()` counts the form we resolve ourselves, which also guarantees the
+affordability check and `RemoveItem` agree on what gold is.
 
-**6. `Settings::kMaxSlots` must equal `SLOTS` in `esp/gen_esp_yaml.sh`.** Otherwise
+The wider lesson: a CommonLibSSE-NG call is not automatically safe. This header carries three
+different default-object table sizes for SE, AE and VR. When an engine helper crashes, prefer a form
+you resolved yourself over the library's convenience wrapper.
+
+**6. Diagnostic code gets the same actor guards as game code.** `Needs::Update()` keeps every deep
+engine read behind `State::active` (`Is3DLoaded()` and not waiting), but `ForEachTracked` visits
+every tracked follower regardless - so a visitor that skips the gate reads state an unloaded actor
+does not have. Report liveness as a field rather than skipping the follower: "not loaded" and
+"nothing applied" are different answers. (This gate was added while chasing the crash above and did
+not fix it - the faulting actor was loaded. It is correct defensively; it was not the bug.)
+
+**7. Absence from the high process list is not dismissal.** `RefreshOnMainThread` walks
+`ProcessLists::highActorHandles`, and a cell transition drops an actor out of it for a moment.
+Erasing on absence meant walking through any door purged the follower and re-added them as a fresh
+hire, zeroing needs - so in normal play a follower could never get hungry, and the mod's whole
+premise quietly did nothing. Ask `IsPlayerTeammate()` instead: it is a flag on the actor, not
+process state, so it answers correctly whether or not they're loaded. Keep unseen followers and mark
+them inactive; only erase on a positive answer (not a teammate, dead, or disabled).
+
+**8. `Settings::kMaxSlots` must equal `SLOTS` in `esp/gen_esp_yaml.sh`.** Otherwise
 `Persistence::Resolve()` can't find every storage global and disables persistence.
 
-**7. Don't read GlobalVariable *values* at `kDataLoaded`.** That fires before save data is applied,
+**9. Don't read GlobalVariable *values* at `kDataLoaded`.** That fires before save data is applied,
 so you get the ESP's compiled-in defaults. Resolving forms there is correct; reading values is not.
 This produced a log line claiming hunger was `40.0` when the save actually held `111.38`.
 

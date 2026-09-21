@@ -153,11 +153,27 @@ namespace
 					continue;
 				}
 
-				// A follower who merely walked out of high process is not dismissed - only one who
-				// is loaded and no longer a teammate is. Anything not in the process list at all is
-				// treated as gone, which is also what happens on dismissal.
-				dismissed.push_back(it->first);
-				it = g_tracked.erase(it);
+				// Missing from the high process list is NOT dismissal, and treating it as such was a
+				// real bug: walking through any door drops the actor out of high process for a
+				// moment, so entering an inn purged the follower and re-added them as a fresh hire,
+				// silently zeroing 200+ hunger and thirst. In normal play you would never see a
+				// follower get hungry at all.
+				//
+				// Dismissal is asked directly instead. kPlayerTeammate is a flag on the actor, not
+				// process state, so it reads correctly whether or not they're loaded - which is what
+				// makes "did they leave the party" and "are they just through a door" separable.
+				auto* actor = RE::TESForm::LookupByID<RE::Actor>(it->first);
+				if (actor && (!actor->IsPlayerTeammate() || actor->IsDead() || actor->IsDisabled())) {
+					dismissed.push_back(it->first);
+					it = g_tracked.erase(it);
+					continue;
+				}
+
+				// Still on the team, or the form wouldn't resolve and we can't tell. Either way,
+				// keep their needs and freeze them - Needs::Update skips inactive followers but
+				// still advances lastTickHours, so no time debt builds up while they're away.
+				it->second.active = false;
+				++it;
 			}
 
 			for (const auto& [formID, actor] : present) {
