@@ -99,11 +99,33 @@ void __stdcall UI::Status::Render()
 	}
 }
 
+namespace
+{
+	// A checkbox is a single discrete click, so its change is final the moment it returns true and
+	// can be written straight out. A slider reports true on every frame of a drag, so that one
+	// waits for the edit to actually finish rather than hammering the file.
+	bool Toggle(const char* a_label, bool* a_value)
+	{
+		if (ImGuiMCP::Checkbox(a_label, a_value)) {
+			Settings::Save();
+			return true;
+		}
+		return false;
+	}
+
+	void SaveIfSliderReleased()
+	{
+		if (ImGuiMCP::IsItemDeactivatedAfterEdit()) {
+			Settings::Save();
+		}
+	}
+}
+
 void __stdcall UI::Config::Render()
 {
 	auto& settings = Settings::Get();
 
-	ImGuiMCP::Checkbox("Track follower needs", &settings.enabled);
+	Toggle("Track follower needs", &settings.enabled);
 	ImGuiMCP::SetItemTooltip("Turns the whole mod off without uninstalling it.");
 
 	ImGuiMCP::Spacing();
@@ -122,6 +144,7 @@ void __stdcall UI::Config::Render()
 			settings.maxTracked = limit;
 		}
 	}
+	SaveIfSliderReleased();
 	ImGuiMCP::SetItemTooltip(
 		"How many followers can have hunger and thirst tracked at once. Tracking runs natively "
 		"rather than in Papyrus, so the performance cost is minimal - raising this mainly means a "
@@ -138,6 +161,7 @@ void __stdcall UI::Config::Render()
 		if (ImGuiMCP::Button("Track more")) {
 			settings.maxTracked = pendingLimit;
 			limitWarningShown = true;
+			Settings::Save();
 			ImGuiMCP::CloseCurrentPopup();
 		}
 		ImGuiMCP::SameLine();
@@ -150,15 +174,15 @@ void __stdcall UI::Config::Render()
 	ImGuiMCP::Spacing();
 	ImGuiMCP::SeparatorText("Which needs");
 
-	ImGuiMCP::Checkbox("Hunger", &settings.trackHunger);
+	Toggle("Hunger", &settings.trackHunger);
 	ImGuiMCP::SetItemTooltip("Tracked per follower, and relieved when they eat.");
-	ImGuiMCP::Checkbox("Thirst", &settings.trackThirst);
+	Toggle("Thirst", &settings.trackThirst);
 	ImGuiMCP::SetItemTooltip("Tracked per follower, and relieved when they drink.");
-	ImGuiMCP::Checkbox("Fatigue", &settings.mirrorFatigue);
+	Toggle("Fatigue", &settings.mirrorFatigue);
 	ImGuiMCP::SetItemTooltip(
 		"Mirrors your own fatigue rather than being tracked separately, so sleeping rests your "
 		"followers at the same time it rests you.");
-	ImGuiMCP::Checkbox("Cold", &settings.mirrorCold);
+	Toggle("Cold", &settings.mirrorCold);
 	ImGuiMCP::SetItemTooltip(
 		"Mirrors your own cold rather than being tracked separately, so getting yourself warm "
 		"warms your followers too.");
@@ -166,11 +190,11 @@ void __stdcall UI::Config::Render()
 	ImGuiMCP::Spacing();
 	ImGuiMCP::SeparatorText("Effects");
 
-	ImGuiMCP::Checkbox("Apply penalties to followers", &settings.applyDebuffs);
+	Toggle("Apply penalties to followers", &settings.applyDebuffs);
 	ImGuiMCP::SetItemTooltip(
 		"Gives followers the same stage penalties SunHelm gives you. Off means needs are still "
 		"tracked and reported, but carry no mechanical effect.");
-	ImGuiMCP::Checkbox("Needs can damage health", &settings.needsDamage);
+	Toggle("Needs can damage health", &settings.needsDamage);
 	ImGuiMCP::SetItemTooltip(
 		"Off by default. Losing a companion because you forgot to feed them is a harsher failure "
 		"than taking the same damage yourself.");
@@ -178,7 +202,7 @@ void __stdcall UI::Config::Render()
 	ImGuiMCP::Spacing();
 	ImGuiMCP::SeparatorText("Eating and drinking");
 
-	ImGuiMCP::Checkbox("Followers feed themselves", &settings.allowSelfFeeding);
+	Toggle("Followers feed themselves", &settings.allowSelfFeeding);
 	ImGuiMCP::SetItemTooltip(
 		"Followers eat and drink out of their own inventory when they need to, consuming the item. "
 		"Off means they only improve when something else feeds them.");
@@ -188,6 +212,7 @@ void __stdcall UI::Config::Render()
 				std::string(SunHelm::StageLabel(a_need, *a_stage)).c_str())) {
 			*a_stage = std::clamp(*a_stage, 1, 5);
 		}
+		SaveIfSliderReleased();
 	};
 	stageCombo("Eat once they are", &settings.eatAtStage, SunHelm::Need::kHunger);
 	ImGuiMCP::SetItemTooltip("The hunger stage at which a follower will reach for food.");
@@ -200,7 +225,7 @@ void __stdcall UI::Config::Render()
 	for (const auto need : SunHelm::kAllNeeds) {
 		const auto index = static_cast<std::size_t>(need);
 		const auto label = std::format("Announce {}", SunHelm::NeedName(need));
-		ImGuiMCP::Checkbox(label.c_str(), &settings.notifyNeed[index]);
+		Toggle(label.c_str(), &settings.notifyNeed[index]);
 	}
-	ImGuiMCP::Checkbox("Announce eating and drinking", &settings.notifyConsumption);
+	Toggle("Announce eating and drinking", &settings.notifyConsumption);
 }

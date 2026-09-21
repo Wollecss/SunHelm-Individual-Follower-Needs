@@ -40,9 +40,10 @@ namespace Settings
 		float pollSeconds{ 5.0f };
 	};
 
-	inline Data& Get()
-	{
-		static Data data;
-		return data;
-	}
+	Data& Get();
+
+	// These are mod configuration, not save state, so they live in a file next to the DLL rather
+	// than in the storage globals - changing save shouldn't change your settings.
+	void Load();
+	void Save();
 }

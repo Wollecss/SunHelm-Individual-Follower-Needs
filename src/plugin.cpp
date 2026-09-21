@@ -1,6 +1,7 @@
 #include "DevBenchTools.h"
 #include "Followers.h"
 #include "Persistence.h"
+#include "Settings.h"
 #include "SunHelm.h"
 #include "UI.h"
 
@@ -85,6 +86,9 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	InitializeLogging();
 
 	logger::info("SunHelm Follower Needs v{} loaded", SKSE::PluginDeclaration::GetSingleton()->GetVersion().string());
+
+	// Before anything reads a setting. Only touches the filesystem, so it's safe this early.
+	Settings::Load();
 
 	SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
 	return true;
