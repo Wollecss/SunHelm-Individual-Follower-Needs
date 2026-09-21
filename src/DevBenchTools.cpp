@@ -16,29 +16,45 @@ namespace
 	// run, unlike SKSE::GetTaskInterface()->AddTask on its own which only queues it. DevBench's
 	// handler contract requires a synchronous JSON result, and anything that touches an Actor -
 	// GetInventory, EquipObject, the process list - is only safe from the main thread, so a
-	// blocking handle-off is the only way to satisfy both requirements at once.
-	bool RunOnMainThreadBlocking(const std::function<void()>& a_fn, std::chrono::milliseconds a_timeout)
+	// blocking hand-off is the only way to satisfy both requirements at once.
+	//
+	// Timing out does NOT cancel the queued task: it runs whenever the main thread next pumps,
+	// which may be long after this returns. So every piece of state it touches is owned by a
+	// shared_ptr the task co-owns, and the result is returned by value. An earlier version had the
+	// caller pass a lambda capturing a local by reference, which wrote into a destroyed object once
+	// a timeout let the caller return first - a use-after-free that crashed the game.
+	template <class T>
+	std::optional<T> RunOnMainThreadBlocking(std::function<T()> a_fn, std::chrono::milliseconds a_timeout)
 	{
 		auto* task = SKSE::GetTaskInterface();
 		if (!task) {
-			return false;
+			return std::nullopt;
 		}
 
-		auto                    done = std::make_shared<std::atomic<bool>>(false);
-		auto                    mutex = std::make_shared<std::mutex>();
-		auto                    cv = std::make_shared<std::condition_variable>();
+		struct Shared
+		{
+			std::mutex              mutex;
+			std::condition_variable cv;
+			bool                    done{ false };
+			T                       value{};
+		};
+		auto shared = std::make_shared<Shared>();
 
-		task->AddTask([a_fn, done, mutex, cv]() {
-			a_fn();
+		task->AddTask([a_fn, shared]() {
+			auto value = a_fn();
 			{
-				std::lock_guard lock(*mutex);
-				done->store(true);
+				std::lock_guard lock(shared->mutex);
+				shared->value = std::move(value);
+				shared->done = true;
 			}
-			cv->notify_all();
+			shared->cv.notify_all();
 		});
 
-		std::unique_lock lock(*mutex);
-		return cv->wait_for(lock, a_timeout, [&]() { return done->load(); });
+		std::unique_lock lock(shared->mutex);
+		if (!shared->cv.wait_for(lock, a_timeout, [&shared]() { return shared->done; })) {
+			return std::nullopt;
+		}
+		return std::move(shared->value);
 	}
 
 	json StageInfo(SunHelm::Need a_need, float a_level)
@@ -88,22 +104,26 @@ namespace
 	// Which stage ability each tracked follower is actually carrying, read off the actor rather
 	// than from what we think we applied - so a mismatch between the two is visible instead of
 	// assumed away. Needs the main thread because it touches actors.
-	std::unordered_map<RE::FormID, json> CollectAppliedAbilities()
+	using AbilityMap = std::unordered_map<RE::FormID, json>;
+
+	std::optional<AbilityMap> CollectAppliedAbilities()
 	{
-		std::unordered_map<RE::FormID, json> out;
-		RunOnMainThreadBlocking(
-			[&out]() {
-				Followers::ForEachTracked([&out](Followers::State& a_state, RE::Actor& a_actor) {
+		// Returns by value into the shared state rather than capturing anything from this scope, so
+		// a timed-out task has nothing of ours left to write into.
+		return RunOnMainThreadBlocking<AbilityMap>(
+			[]() {
+				AbilityMap collected;
+				Followers::ForEachTracked([&collected](Followers::State& a_state, RE::Actor& a_actor) {
 					json entry;
 					for (const auto need : SunHelm::kAllNeeds) {
 						entry[std::string(SunHelm::NeedName(need))] =
 							SunHelm::AppliedStageOn(&a_actor, need);
 					}
-					out[a_state.formID] = std::move(entry);
+					collected[a_state.formID] = std::move(entry);
 				});
+				return collected;
 			},
 			std::chrono::milliseconds(5000));
-		return out;
 	}
 
 	void StatusHandler(void* /*a_ctx*/, const char* /*a_argsJson*/, void* a_sink, DevBenchAPI::WriteFn a_write)
@@ -111,11 +131,18 @@ namespace
 		const auto abilities = CollectAppliedAbilities();
 
 		auto out = BuildStatus();
-		for (auto& follower : out["followers"]) {
-			const auto formID = static_cast<RE::FormID>(
-				std::stoul(follower["formID"].get<std::string>(), nullptr, 16));
-			if (const auto it = abilities.find(formID); it != abilities.end()) {
-				follower["applied_abilities"] = it->second;
+		if (!abilities) {
+			// Said out loud rather than just leaving the field off - an absent field is
+			// indistinguishable from "this follower has no abilities", which is a different thing.
+			out["applied_abilities_error"] =
+				"main thread did not respond within 5000ms (game paused, in a menu, or loading)";
+		} else {
+			for (auto& follower : out["followers"]) {
+				const auto formID = static_cast<RE::FormID>(
+					std::stoul(follower["formID"].get<std::string>(), nullptr, 16));
+				if (const auto it = abilities->find(formID); it != abilities->end()) {
+					follower["applied_abilities"] = it->second;
+				}
 			}
 		}
 
@@ -155,7 +182,12 @@ namespace
 
 	void ForceTickHandler(void* /*a_ctx*/, const char* /*a_argsJson*/, void* a_sink, DevBenchAPI::WriteFn a_write)
 	{
-		const auto ranInTime = RunOnMainThreadBlocking([]() { Needs::Update(); }, std::chrono::milliseconds(5000));
+		const auto ranInTime = RunOnMainThreadBlocking<bool>(
+			[]() {
+				Needs::Update();
+				return true;
+			},
+			std::chrono::milliseconds(5000));
 
 		json result;
 		if (!ranInTime) {
