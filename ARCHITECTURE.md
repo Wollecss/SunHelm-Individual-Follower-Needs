@@ -41,10 +41,16 @@ Follower detection uses `IsPlayerTeammate()` rather than faction membership deli
 vanilla follow packages set, and therefore what multi-follower frameworks like NFF build on. It
 requires no faction FormIDs and works the same with or without such a framework installed.
 
-Consumption goes through `EquipObject` rather than a hand-rolled "remove item and play an idle"
+Consumption goes through `EquipObject` rather than a hand-rolled "remove item and subtract a value"
 sequence because it *is* the path the engine uses when any actor uses a potion. That gets item
-removal, effect application and the correct keyword-conditioned animation (including animation
-replacers) for free, instead of reimplementing each.
+removal and effect application for free instead of reimplementing them.
+
+It does **not** get an animation, which an earlier version of this document wrongly claimed. Nothing
+plays when a follower eats: verified in game, with the item consumed and the need restored but no
+visible action. Animation mods of the Eating Animations and Sounds family drive their animations from
+a Papyrus `OnObjectEquipped` handler on a quest ReferenceAlias holding the **player**, so an NPC
+equipping food fires the event on itself with no listener attached. Animating followers would mean
+driving the behaviour graph directly rather than hoping a player-scoped mod picks it up.
 
 ---
 

@@ -22,7 +22,7 @@ suit - there is no duplicate rate setting to keep in sync.
 
 **Followers feed themselves.** When a follower gets hungry or thirsty enough, they search their own
 inventory for something SunHelm recognises as food or drink and consume it through the engine's real
-consumption path - the item is genuinely used up and the matching animation plays. A cooldown stops
+consumption path - the item is genuinely used up and its effects really apply. A cooldown stops
 them working through an entire pack in one go.
 
 **They buy their own food and drink at inns.** Inside an inn, a hungry or thirsty follower spends
@@ -167,10 +167,33 @@ tracked follower. Ten is the hard ceiling, set by the number of storage slots in
 - **Buying needs gold in their pocket, not yours.** Most vanilla followers carry almost nothing, so
   this stays invisible until you fund them. The log says explicitly when one wanted a meal and
   couldn't afford it.
+- **No eating or drinking animation.** The item is consumed for real and its effects apply, but the
+  follower doesn't visibly eat or drink - food simply disappears from their pack. Animation mods such
+  as Eating Animations and Sounds hook `OnObjectEquipped` on a quest alias holding the *player*, so
+  nothing is listening when an NPC consumes something. Making followers animate needs work this mod
+  doesn't do yet.
 - **Humanoid followers only.** Animal companions are not tracked.
 - **Food must be something SunHelm recognises.** Unrecognised food doesn't feed followers - but it
   doesn't feed the player either, so this fails in the same direction SunHelm does.
 - **Ten followers maximum**, regardless of what your follower framework permits.
+
+---
+
+## Planned
+
+Not promises, and not in any particular order - this is what the mod is likely to grow next.
+
+**Eating and drinking animations for followers.** Currently food is consumed silently. Doing this
+properly means driving the follower's behaviour graph directly, since the existing animation mods are
+scoped to the player, and deciding what should happen when a follower needs to eat while following
+you on the road.
+
+**Being cured by a healer.** Temple priests and apothecaries would offer to cure your followers'
+diseases through a dialogue option, paid for by the player, rather than every follower needing to
+carry their own potions.
+
+**An optional Immersive Diseases patch,** covering both the combat and the consumption infection
+routes, toggleable, with an adjustable probability.
 
 ---
 

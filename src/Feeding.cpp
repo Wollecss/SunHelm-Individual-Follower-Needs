@@ -150,7 +150,13 @@ namespace
 	{
 		// EquipObject on a potion/food item is the same native call the engine makes for any
 		// actor "using" one - it applies the item's effect and removes it from inventory itself,
-		// the same as a player quick-using food. No manual RemoveItem or animation call needed.
+		// the same as a player quick-using food, so no manual RemoveItem is needed.
+		//
+		// It does NOT produce an animation, despite an earlier comment here claiming otherwise.
+		// Eating Animations and Sounds and its relatives listen on a quest ReferenceAlias holding
+		// the player, so an NPC equipping food fires OnObjectEquipped on itself with nothing
+		// listening. Followers consume silently; making them animate is unbuilt work, not a
+		// side effect of this call.
 		RE::ActorEquipManager::GetSingleton()->EquipObject(&a_actor, a_candidate.object);
 	}
 
