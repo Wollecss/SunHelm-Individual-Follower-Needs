@@ -24,6 +24,12 @@ namespace Followers
 		// [0] hunger, [1] thirst.
 		int outOfSupplyNotifiedStage[2]{ -1, -1 };
 
+		// Calendar hours at the last meal / drink, so a follower doesn't work through their whole
+		// pack in one go. Eating and drinking are tracked apart: a meal shouldn't stop them washing
+		// it down. [0] hunger, [1] thirst. Not persisted - a fresh session should never inherit a
+		// cooldown, and starting at 0 simply means the first one is always allowed.
+		float lastConsumedHours[2]{ 0.0f, 0.0f };
+
 		// Mirrored needs don't accumulate, but the applied ability still has to be kept in step.
 		int appliedStage[static_cast<std::size_t>(SunHelm::Need::kTotal)]{ -1, -1, -1, -1 };
 

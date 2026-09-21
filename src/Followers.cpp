@@ -24,6 +24,12 @@ namespace
 	std::atomic<bool> g_running{ false };
 	std::thread       g_pollThread;
 
+	// The main thread stops consuming tasks whenever the game is paused, in a menu or loading, but
+	// this thread keeps waking on its own timer. Without this guard the queue builds up and then
+	// flushes all at once - which was observed making a follower eat four meals inside a minute,
+	// two of them 3ms apart. One outstanding tick at a time is all this loop ever needs.
+	std::atomic<bool> g_tickQueued{ false };
+
 	RE::BGSKeyword* g_actorTypeNPC{ nullptr };
 
 	void ResolveActorTypeNPC()
@@ -200,11 +206,18 @@ namespace
 
 			// Everything that reads the process list or an actor has to be on the main thread; the
 			// game mutates both while this thread sleeps.
+			if (g_tickQueued.exchange(true)) {
+				continue;  // The previous tick hasn't run yet; don't stack another behind it.
+			}
+
 			if (auto* task = SKSE::GetTaskInterface()) {
 				task->AddTask([]() {
 					RefreshOnMainThread();
 					Needs::Update();
+					g_tickQueued.store(false);
 				});
+			} else {
+				g_tickQueued.store(false);
 			}
 		}
 	}

@@ -5,12 +5,27 @@
 
 namespace
 {
+	// Minimum game time between one follower's meals, and separately between their drinks. Without
+	// it a Ravenous follower empties their pack in seconds: consumption is attempted every tick, so
+	// four meals could land inside a minute, which both contradicts relief only "taking the edge
+	// off" and burns through supplies the player provided. At a default timescale this is roughly
+	// 45 real seconds.
+	constexpr float kConsumeCooldownHours = 0.25f;
+
 	struct Candidate
 	{
 		RE::TESBoundObject* object{ nullptr };
 		SunHelm::FoodKind   kind{ SunHelm::FoodKind::kNone };
 		float               restore{ 0.0f };
 	};
+
+	bool CooldownElapsed(const Followers::State& a_state, std::size_t a_slot, float a_nowHours)
+	{
+		const auto since = a_nowHours - a_state.lastConsumedHours[a_slot];
+		// A negative gap means the clock went backwards (an older save was loaded), so treat the
+		// cooldown as spent rather than trusting the number.
+		return since < 0.0f || since >= kConsumeCooldownHours;
+	}
 
 	// Not in combat, actually present, and not the actor the player is currently talking to -
 	// interrupting a conversation to eat a sandwich would be its own bug report. Being parked or
@@ -74,7 +89,10 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 		return;
 	}
 
+	const auto nowHours = RE::Calendar::GetSingleton()->GetHoursPassed();
+
 	if (settings.trackHunger && SunHelm::IsNeedEnabled(SunHelm::Need::kHunger) &&
+		CooldownElapsed(a_state, 0, nowHours) &&
 		SunHelm::StageOf(SunHelm::Need::kHunger, a_state.hunger) >= settings.eatAtStage) {
 		const auto candidate = BestCandidate(a_actor, SunHelm::HungerRestore,
 			{ SunHelm::FoodKind::kLight, SunHelm::FoodKind::kMedium, SunHelm::FoodKind::kHeavy,
@@ -82,6 +100,7 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 
 		if (candidate.object) {
 			Consume(a_actor, candidate);
+			a_state.lastConsumedHours[0] = nowHours;
 			logger::info("{} ate '{}' (-{:.0f} hunger, from {:.1f})", a_state.name,
 				ItemLabel(candidate.object), candidate.restore, a_state.hunger);
 			a_state.hunger = std::clamp(
@@ -110,12 +129,14 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 	}
 
 	if (settings.trackThirst && SunHelm::IsNeedEnabled(SunHelm::Need::kThirst) &&
+		CooldownElapsed(a_state, 1, nowHours) &&
 		SunHelm::StageOf(SunHelm::Need::kThirst, a_state.thirst) >= settings.drinkAtStage) {
 		const auto candidate = BestCandidate(a_actor, SunHelm::ThirstRestore,
 			{ SunHelm::FoodKind::kDrink, SunHelm::FoodKind::kWaterskin, SunHelm::FoodKind::kAlcohol });
 
 		if (candidate.object) {
 			Consume(a_actor, candidate);
+			a_state.lastConsumedHours[1] = nowHours;
 			logger::info("{} drank '{}' (-{:.0f} thirst, from {:.1f})", a_state.name,
 				ItemLabel(candidate.object), candidate.restore, a_state.thirst);
 			a_state.thirst = std::clamp(
