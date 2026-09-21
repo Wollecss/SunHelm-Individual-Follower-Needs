@@ -1,5 +1,6 @@
 #include "Followers.h"
 
+#include "Bridge.h"
 #include "Needs.h"
 #include "Settings.h"
 
@@ -137,7 +138,9 @@ namespace
 
 		const auto maxTracked = std::clamp(Settings::Get().maxTracked, 1, Settings::kMaxSlots);
 
-		std::vector<RE::FormID>                  dismissed;
+		// Carries the name as well as the ID: the entry is erased below, and the CHIM bridge keys
+		// followers by name, so it has to be captured before the state goes.
+		std::vector<std::pair<RE::FormID, std::string>> dismissed;
 		std::vector<std::pair<std::string, int>> hired;
 		std::vector<std::string>                 restored;
 
@@ -164,7 +167,7 @@ namespace
 				// makes "did they leave the party" and "are they just through a door" separable.
 				auto* actor = RE::TESForm::LookupByID<RE::Actor>(it->first);
 				if (actor && (!actor->IsPlayerTeammate() || actor->IsDead() || actor->IsDisabled())) {
-					dismissed.push_back(it->first);
+					dismissed.emplace_back(it->first, it->second.name);
 					it = g_tracked.erase(it);
 					continue;
 				}
@@ -210,8 +213,9 @@ namespace
 			}
 		}
 
-		for (const auto formID : dismissed) {
+		for (const auto& [formID, name] : dismissed) {
 			ClearAppliedSpells(formID);
+			Bridge::NoteDismissed(formID, name);
 			logger::info("Stopped tracking follower {:08X}", formID);
 		}
 		for (const auto& [name, slot] : hired) {

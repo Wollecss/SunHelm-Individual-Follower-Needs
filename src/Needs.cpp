@@ -1,5 +1,6 @@
 #include "Needs.h"
 
+#include "Bridge.h"
 #include "Feeding.h"
 #include "Followers.h"
 #include "Persistence.h"
@@ -250,6 +251,11 @@ void Needs::Update()
 			}
 			UpdateDrunkenness(a_state, a_actor, nowHours);
 		}
+
+		// Published after the drinking and feeding above, so a follower who ate this tick is
+		// reported as fed rather than as the hungry person they were a moment ago. Publishing is
+		// change-gated inside Bridge, so this costs a comparison on most ticks.
+		Bridge::NoteFollower(a_state, a_actor);
 
 		for (const auto need : SunHelm::kAllNeeds) {
 			int stage = 0;

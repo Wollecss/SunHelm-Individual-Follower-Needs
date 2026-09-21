@@ -84,6 +84,10 @@ namespace Settings
 		// they're still in the inn they stay drunk regardless - they're still ordering.
 		float soberUpHours{ 4.0f };
 
+		// Publishes follower condition for the CHIM bridge mod to forward to HerikaServer. Inert
+		// without it: the queue is capped, so nothing consuming it costs a fixed handful of strings.
+		bool chimBridge{ true };
+
 		bool notifyNeed[static_cast<std::size_t>(SunHelm::Need::kTotal)]{ true, true, true, true };
 		bool notifyConsumption{ true };
 

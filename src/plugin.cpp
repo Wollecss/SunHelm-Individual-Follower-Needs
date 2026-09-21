@@ -1,3 +1,4 @@
+#include "Bridge.h"
 #include "DevBenchTools.h"
 #include "Followers.h"
 #include "Persistence.h"
@@ -73,6 +74,9 @@ namespace
 			logger::info("kPreLoadGame");
 			Followers::SetGameReady(false);
 			Followers::Reset();
+			// Queued payloads describe the outgoing save's party. Sending them after the load would
+			// tell the server about followers who may not even be hired here.
+			Bridge::Reset();
 			break;
 		default:
 			break;
@@ -91,6 +95,11 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 
 	// Before anything reads a setting. Only touches the filesystem, so it's safe this early.
 	Settings::Load();
+
+	// Registered here rather than on a message: SKSE calls this before the VM starts compiling
+	// scripts, which is the window where a native binding can still be attached. The CHIM bridge
+	// script is the only consumer, and it fails soft when this plugin is absent.
+	SKSE::GetPapyrusInterface()->Register(Bridge::RegisterPapyrus);
 
 	SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
 	return true;
