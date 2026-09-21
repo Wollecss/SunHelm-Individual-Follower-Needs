@@ -149,8 +149,18 @@ The JSON should appear at `Data/SKSE/Plugins/SunHelmFollowerNeeds.json`, which u
 likely means `H:\Nolvus Awakening\MODS\overwrite\SKSE\Plugins\`. If it lands somewhere unexpected,
 adjust `kSettingsPath` in `src/Settings.cpp`.
 
-**A trap worth remembering** (cost a full test cycle once): the poll loop keeps ticking *during* a
-save load. `Needs::Update()` is gated on `Followers::IsGameReady()` precisely because, without it, a
+**Trap: a timed-out main-thread hop still runs later.** `RunOnMainThreadBlocking` in
+`src/DevBenchTools.cpp` gives up after 5s, but giving up does NOT cancel the queued task - it runs
+whenever the main thread next pumps. An early version had the caller pass a lambda capturing a local
+`std::unordered_map` by reference; once a timeout let the caller return and destroy it, the task
+wrote into freed memory. That crashed the game for real (`EXCEPTION_ACCESS_VIOLATION` reading
+`0xFFFFFFFFFFFFFFFF`, all five top stack frames in our DLL, faulting instruction
+`mov rbx, [rax+rcx*8+0x08]` - an unordered_map bucket lookup). Easy to hit, because the main thread
+stops pumping exactly when someone is poking at a status tool: paused, in a menu, or loading.
+Anything handed to that helper must own its state via `shared_ptr` and return by value - never
+capture a local by reference.
+
+**Trap: the poll loop keeps ticking *during* a save load** (cost a full test cycle once). `Needs::Update()` is gated on `Followers::IsGameReady()` precisely because, without it, a
 tick fires between `kPreLoadGame` (which clears the roster) and the save going live, and
 `Persistence::Save()` zeroes every storage slot before `Load()` can read it. Any new write-on-tick
 work needs the same gate.
