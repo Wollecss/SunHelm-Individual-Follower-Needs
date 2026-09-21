@@ -5,6 +5,7 @@
 #include "Persistence.h"
 #include "Settings.h"
 #include "SunHelm.h"
+#include "Tavern.h"
 
 namespace
 {
@@ -118,6 +119,42 @@ namespace
 		}
 	}
 
+	// How long after their last drink a follower sobers up.
+	constexpr float kSoberUpHours = 4.0f;
+
+	// Drunkenness rides on SunHelm's own drunk ability and its own drinks-before-drunk setting, so a
+	// tipsy follower looks the same as a tipsy player.
+	void UpdateDrunkenness(Followers::State& a_state, RE::Actor& a_actor, float a_nowHours)
+	{
+		auto* spell = SunHelm::DrunkSpell();
+		if (!spell) {
+			return;
+		}
+
+		const auto sinceLastDrink = a_nowHours - a_state.lastDrinkHours;
+		if (a_state.drinksHad > 0 && (sinceLastDrink < 0.0f || sinceLastDrink >= kSoberUpHours)) {
+			a_state.drinksHad = 0;
+		}
+
+		const auto shouldBeDrunk = Settings::Get().drunkEffects &&
+		                           a_state.drinksHad >= SunHelm::DrinksBeforeDrunk();
+		if (shouldBeDrunk == a_state.drunk) {
+			return;  // Only touch the ability when it actually changes.
+		}
+
+		a_state.drunk = shouldBeDrunk;
+		if (shouldBeDrunk) {
+			a_actor.AddSpell(spell);
+			logger::info("{} is drunk after {} drink(s)", a_state.name, a_state.drinksHad);
+			if (Settings::Get().notifyConsumption) {
+				RE::DebugNotification(std::format("{} is drunk.", a_state.name).c_str());
+			}
+		} else {
+			a_actor.RemoveSpell(spell);
+			logger::info("{} has sobered up", a_state.name);
+		}
+	}
+
 	void ApplyNeedsDamage(const Followers::State& a_state, RE::Actor& a_actor, float a_elapsedHours)
 	{
 		if (!Settings::Get().needsDamage || a_elapsedHours <= 0.0f) {
@@ -186,9 +223,18 @@ void Needs::Update()
 				AdvanceOwnNeed(a_state, SunHelm::Need::kThirst, elapsed);
 				ApplyNeedsDamage(a_state, a_actor, elapsed);
 			}
-			// Runs every tick regardless of elapsed time, so a follower fed by the player mid-poll
-			// still gets picked up promptly rather than waiting on the next hour of game time.
-			Feeding::TryEatAndDrink(a_state, a_actor);
+			// Both run every tick regardless of elapsed time, so something handed over mid-poll
+			// gets picked up promptly rather than waiting on the next hour of game time.
+			// Buying only ever adds an item to their pack; Feeding is what actually consumes it,
+			// so there is one code path for eating and drinking no matter where it came from.
+			if (Settings::Get().preferBuying) {
+				Tavern::TryPurchase(a_state, a_actor);
+				Feeding::TryEatAndDrink(a_state, a_actor);
+			} else {
+				Feeding::TryEatAndDrink(a_state, a_actor);
+				Tavern::TryPurchase(a_state, a_actor);
+			}
+			UpdateDrunkenness(a_state, a_actor, nowHours);
 		}
 
 		for (const auto need : SunHelm::kAllNeeds) {

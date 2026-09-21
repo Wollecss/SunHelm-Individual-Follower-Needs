@@ -219,6 +219,42 @@ void __stdcall UI::Config::Render()
 	stageCombo("Drink once they are", &settings.drinkAtStage, SunHelm::Need::kThirst);
 	ImGuiMCP::SetItemTooltip("The thirst stage at which a follower will reach for a drink.");
 
+	ImGuiMCP::SliderFloat("Wait between meals", &settings.consumeCooldownHours, 0.0f, 6.0f, "%.2f hours");
+	ImGuiMCP::SetItemTooltip(
+		"Game time a follower waits before eating or drinking again. Without a gap they work "
+		"through a whole pack in seconds. Zero removes the limit entirely.");
+	SaveIfSliderReleased();
+
+	ImGuiMCP::Spacing();
+	ImGuiMCP::SeparatorText("Inns and taverns");
+
+	Toggle("Buy food and drink at inns", &settings.buyAtInns);
+	ImGuiMCP::SetItemTooltip(
+		"Inside an inn, a hungry or thirsty follower buys a meal or a drink out of their own purse "
+		"at the same prices SunHelm charges you. Most followers carry very little gold, so give "
+		"them some if you want them to feed themselves on the road.");
+	Toggle("Buy before raiding their own pack", &settings.preferBuying);
+	ImGuiMCP::SetItemTooltip(
+		"Off means they eat what they're already carrying first and only spend coin when they have "
+		"nothing suitable.");
+	Toggle("Buy ale", &settings.buyAlcohol);
+	ImGuiMCP::SetItemTooltip(
+		"Ale is the cheap answer to thirst, and they'll occasionally have one in a tavern even when "
+		"they don't need it.");
+	Toggle("Ale can make them drunk", &settings.drunkEffects);
+	ImGuiMCP::SetItemTooltip("Uses SunHelm's own drunk effect, after SunHelm's own number of drinks.");
+
+	ImGuiMCP::SliderFloat("Wait between purchases", &settings.purchaseCooldownHours, 0.0f, 12.0f, "%.2f hours");
+	ImGuiMCP::SetItemTooltip(
+		"Game time before a follower buys again. Turn this and the meal gap down together if you'd "
+		"rather watch them drink themselves under the table.");
+	SaveIfSliderReleased();
+
+	ImGuiMCP::SliderInt("Chance of a social drink", &settings.socialDrinkChance, 0, 100, "%d%%");
+	ImGuiMCP::SetItemTooltip(
+		"How likely a follower in a tavern is to buy a drink they don't actually need.");
+	SaveIfSliderReleased();
+
 	ImGuiMCP::Spacing();
 	ImGuiMCP::SeparatorText("Notifications");
 

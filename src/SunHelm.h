@@ -61,6 +61,21 @@ namespace SunHelm
 	float    HungerRestore(FoodKind a_kind);
 	float    ThirstRestore(FoodKind a_kind);
 
+	// True while the actor is somewhere flagged as an inn - the same LocTypeInn check SunHelm uses
+	// to decide whether to skip its own party food scaling.
+	bool IsInInn(RE::Actor* a_actor);
+
+	// An item of the given kind that can be bought at an inn, taken from SunHelm's own FormLists so
+	// it's guaranteed to classify correctly and picks up anything a compatibility patch added.
+	// Returns nullptr if nothing suitable resolved.
+	RE::TESBoundObject* PickPurchasable(FoodKind a_kind);
+
+	RE::TESBoundObject* Gold();
+
+	// SunHelm's own drunk ability, and its MCM-configured number of drinks before it applies.
+	RE::SpellItem* DrunkSpell();
+	int            DrinksBeforeDrunk();
+
 	RE::SpellItem* StageSpell(Need a_need, int a_stage);
 
 	// Which stage ability the actor is actually carrying for this need right now, or -1 for none.

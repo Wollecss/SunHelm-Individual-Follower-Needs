@@ -67,6 +67,13 @@ void Settings::Load()
 	ReadInto(parsed, "notifyConsumption", g_data.notifyConsumption);
 	ReadInto(parsed, "needsDamage", g_data.needsDamage);
 	ReadInto(parsed, "pollSeconds", g_data.pollSeconds);
+	ReadInto(parsed, "buyAtInns", g_data.buyAtInns);
+	ReadInto(parsed, "preferBuying", g_data.preferBuying);
+	ReadInto(parsed, "buyAlcohol", g_data.buyAlcohol);
+	ReadInto(parsed, "drunkEffects", g_data.drunkEffects);
+	ReadInto(parsed, "consumeCooldownHours", g_data.consumeCooldownHours);
+	ReadInto(parsed, "purchaseCooldownHours", g_data.purchaseCooldownHours);
+	ReadInto(parsed, "socialDrinkChance", g_data.socialDrinkChance);
 
 	for (std::size_t need = 0; need < kNeedKeys.size(); ++need) {
 		ReadInto(parsed, kNeedKeys[need], g_data.notifyNeed[need]);
@@ -78,6 +85,10 @@ void Settings::Load()
 	g_data.eatAtStage = std::clamp(g_data.eatAtStage, 1, 5);
 	g_data.drinkAtStage = std::clamp(g_data.drinkAtStage, 1, 5);
 	g_data.pollSeconds = std::clamp(g_data.pollSeconds, 1.0f, 60.0f);
+	// Zero is allowed for both cooldowns - that's the "let them drink themselves silly" setting.
+	g_data.consumeCooldownHours = std::clamp(g_data.consumeCooldownHours, 0.0f, 24.0f);
+	g_data.purchaseCooldownHours = std::clamp(g_data.purchaseCooldownHours, 0.0f, 24.0f);
+	g_data.socialDrinkChance = std::clamp(g_data.socialDrinkChance, 0, 100);
 
 	logger::info("Settings loaded (tracking up to {} follower(s))", g_data.maxTracked);
 }
@@ -98,6 +109,13 @@ void Settings::Save()
 	out["notifyConsumption"] = g_data.notifyConsumption;
 	out["needsDamage"] = g_data.needsDamage;
 	out["pollSeconds"] = g_data.pollSeconds;
+	out["buyAtInns"] = g_data.buyAtInns;
+	out["preferBuying"] = g_data.preferBuying;
+	out["buyAlcohol"] = g_data.buyAlcohol;
+	out["drunkEffects"] = g_data.drunkEffects;
+	out["consumeCooldownHours"] = g_data.consumeCooldownHours;
+	out["purchaseCooldownHours"] = g_data.purchaseCooldownHours;
+	out["socialDrinkChance"] = g_data.socialDrinkChance;
 
 	for (std::size_t need = 0; need < kNeedKeys.size(); ++need) {
 		out[kNeedKeys[need]] = g_data.notifyNeed[need];

@@ -47,6 +47,12 @@ namespace
 		RE::TESGlobal* modEnabled{ nullptr };
 		RE::TESGlobal* pauseCombat{ nullptr };
 		RE::TESGlobal* pauseDialogue{ nullptr };
+		RE::TESGlobal* numDrinks{ nullptr };
+
+		RE::BGSKeyword*     locTypeInn{ nullptr };
+		RE::TESBoundObject* gold{ nullptr };
+		RE::TESBoundObject* waterBottle{ nullptr };
+		RE::SpellItem*      drunkSpell{ nullptr };
 
 		RE::BGSKeyword* lightFood{ nullptr };
 		RE::BGSKeyword* mediumFood{ nullptr };
@@ -102,6 +108,7 @@ namespace
 			{ "_SHEnabled"sv, &g_forms.modEnabled },
 			{ "_SHPauseNeedsCombat"sv, &g_forms.pauseCombat },
 			{ "_SHPauseNeedsDialogue"sv, &g_forms.pauseDialogue },
+			{ "_SHNumDrinks"sv, &g_forms.numDrinks },
 		};
 
 		for (auto* global : RE::TESDataHandler::GetSingleton()->GetFormArray<RE::TESGlobal>()) {
@@ -135,6 +142,8 @@ namespace
 			{ "_SH_WineWATERBottleKeyword"sv, &g_forms.wineWater },
 			{ "_SH_SujammaWATERBottleKeyword"sv, &g_forms.sujammaWater },
 			{ "VendorItemFoodRaw"sv, &g_forms.rawFood },
+			// Vanilla, used to tell whether a follower is somewhere they could buy a meal.
+			{ "LocTypeInn"sv, &g_forms.locTypeInn },
 		};
 
 		for (auto* keyword : RE::TESDataHandler::GetSingleton()->GetFormArray<RE::BGSKeyword>()) {
@@ -177,6 +186,15 @@ namespace
 		g_forms.rawList = list(0x1A04C7, "_SHRawList");
 		g_forms.foodIgnoreList = list(0x09E19D, "_SHFoodIgnoreList");
 		g_forms.waterskinList = list(0x4E3ABA, "_SHWaterskins");
+
+		// Gold is vanilla and always present. The water bottle and drunk ability are SunHelm's own.
+		g_forms.gold = RE::TESForm::LookupByID<RE::TESBoundObject>(0x0000000F);
+		g_forms.waterBottle = handler->LookupForm<RE::TESBoundObject>(0x07AA96, SunHelm::kPluginName);
+		g_forms.drunkSpell = handler->LookupForm<RE::SpellItem>(0x377265, SunHelm::kPluginName);
+		if (!g_forms.gold || !g_forms.waterBottle || !g_forms.drunkSpell) {
+			logger::error("Could not resolve gold / water bottle / drunk ability - buying at inns "
+						  "will be unavailable");
+		}
 
 		int missingSpells = 0;
 		for (std::size_t need = 0; need < kNeedCount; ++need) {
@@ -421,6 +439,73 @@ float SunHelm::ThirstRestore(FoodKind a_kind)
 	default:
 		return 0.0f;
 	}
+}
+
+bool SunHelm::IsInInn(RE::Actor* a_actor)
+{
+	if (!a_actor || !g_forms.locTypeInn) {
+		return false;
+	}
+	auto* location = a_actor->GetCurrentLocation();
+	return location && location->HasKeyword(g_forms.locTypeInn);
+}
+
+RE::TESBoundObject* SunHelm::PickPurchasable(FoodKind a_kind)
+{
+	if (a_kind == FoodKind::kDrink || a_kind == FoodKind::kWaterskin) {
+		return g_forms.waterBottle;
+	}
+
+	// Drawn from SunHelm's own lists rather than hardcoded vanilla FormIDs, so whatever an
+	// innkeeper hands over is guaranteed to classify correctly on the way back in - including
+	// anything a compatibility patch added to these lists.
+	RE::BGSListForm* source = nullptr;
+	switch (a_kind) {
+	case FoodKind::kAlcohol:
+		source = g_forms.alcoholList;
+		break;
+	case FoodKind::kLight:
+		source = g_forms.foodLightList;
+		break;
+	case FoodKind::kHeavy:
+		source = g_forms.foodHeavyList;
+		break;
+	default:
+		source = g_forms.foodMediumList;
+		break;
+	}
+	if (!source) {
+		return nullptr;
+	}
+
+	// First entry that still resolves to something edible. List entries can reference forms from
+	// plugins that aren't loaded, and Classify() is re-checked so a mis-filed entry can't produce
+	// an item the follower would then refuse to consume.
+	RE::TESBoundObject* found = nullptr;
+	source->ForEachForm([&](RE::TESForm& a_form) {
+		if (auto* object = a_form.As<RE::TESBoundObject>(); object && Classify(object) == a_kind) {
+			found = object;
+			return RE::BSContainer::ForEachResult::kStop;
+		}
+		return RE::BSContainer::ForEachResult::kContinue;
+	});
+	return found;
+}
+
+RE::TESBoundObject* SunHelm::Gold()
+{
+	return g_forms.gold;
+}
+
+RE::SpellItem* SunHelm::DrunkSpell()
+{
+	return g_forms.drunkSpell;
+}
+
+int SunHelm::DrinksBeforeDrunk()
+{
+	// SunHelm's MCM default is 3; clamped so a zero doesn't mean "drunk on an empty stomach".
+	return std::max(1, static_cast<int>(std::lround(ReadGlobal(g_forms.numDrinks, 3.0f))));
 }
 
 RE::SpellItem* SunHelm::StageSpell(Need a_need, int a_stage)

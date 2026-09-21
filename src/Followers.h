@@ -30,6 +30,17 @@ namespace Followers
 		// cooldown, and starting at 0 simply means the first one is always allowed.
 		float lastConsumedHours[2]{ 0.0f, 0.0f };
 
+		// Same idea for buying at an inn, but on a longer leash. Buying is attempted every tick
+		// while consumption is rate-limited, so without this a follower would stockpile food and
+		// empty their purse rather than buying a meal, eating it, and getting on with the evening.
+		float lastPurchaseHours[2]{ 0.0f, 0.0f };
+
+		// Drinks since they last sobered up, and when the most recent one was. Drives SunHelm's own
+		// drunk ability once they've had enough.
+		int   drinksHad{ 0 };
+		float lastDrinkHours{ 0.0f };
+		bool  drunk{ false };
+
 		// Mirrored needs don't accumulate, but the applied ability still has to be kept in step.
 		int appliedStage[static_cast<std::size_t>(SunHelm::Need::kTotal)]{ -1, -1, -1, -1 };
 

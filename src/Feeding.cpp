@@ -5,13 +5,6 @@
 
 namespace
 {
-	// Minimum game time between one follower's meals, and separately between their drinks. Without
-	// it a Ravenous follower empties their pack in seconds: consumption is attempted every tick, so
-	// four meals could land inside a minute, which both contradicts relief only "taking the edge
-	// off" and burns through supplies the player provided. At a default timescale this is roughly
-	// 45 real seconds.
-	constexpr float kConsumeCooldownHours = 0.25f;
-
 	struct Candidate
 	{
 		RE::TESBoundObject* object{ nullptr };
@@ -19,12 +12,15 @@ namespace
 		float               restore{ 0.0f };
 	};
 
+	// Stops a Ravenous follower emptying their pack in seconds: consumption is attempted every tick,
+	// so without this four meals could land inside a minute, which both contradicts relief only
+	// "taking the edge off" and burns through supplies the player provided.
 	bool CooldownElapsed(const Followers::State& a_state, std::size_t a_slot, float a_nowHours)
 	{
 		const auto since = a_nowHours - a_state.lastConsumedHours[a_slot];
 		// A negative gap means the clock went backwards (an older save was loaded), so treat the
 		// cooldown as spent rather than trusting the number.
-		return since < 0.0f || since >= kConsumeCooldownHours;
+		return since < 0.0f || since >= Settings::Get().consumeCooldownHours;
 	}
 
 	// Not in combat, actually present, and not the actor the player is currently talking to -
@@ -142,6 +138,10 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 		if (candidate.object) {
 			Consume(a_actor, candidate);
 			a_state.lastConsumedHours[1] = nowHours;
+			if (candidate.kind == SunHelm::FoodKind::kAlcohol) {
+				++a_state.drinksHad;
+				a_state.lastDrinkHours = nowHours;
+			}
 			logger::info("{} drank '{}' (-{:.0f} thirst, from {:.1f})", a_state.name,
 				ItemLabel(candidate.object), candidate.restore, a_state.thirst);
 			a_state.thirst = std::clamp(
