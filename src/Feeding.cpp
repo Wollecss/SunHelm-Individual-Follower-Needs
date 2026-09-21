@@ -66,34 +66,60 @@ namespace
 
 	// Mirrors what _SHEatDetection does to the player for raw food: with diseases on it's a 30%
 	// chance of food poisoning, and with them off it's a flat bite of health instead.
+	// Every outcome is logged, including the ones where nothing happens. A raw meal with no line
+	// after it used to be indistinguishable between four different reasons - the risk switched off
+	// in SunHelm, an immune race, a lucky roll, or the spell failing to resolve - which is exactly
+	// the silence AGENTS.md warns about. The roll result is worth having in the log too, because a
+	// probability bug is invisible in any single session.
 	void ApplyRawFoodRisk(const Followers::State& a_state, RE::Actor& a_actor)
 	{
-		if (!SunHelm::RawFoodDamageEnabled() || SunHelm::IsImmuneToFoodPoisoning(&a_actor)) {
+		if (!SunHelm::RawFoodDamageEnabled()) {
+			logger::info("{} ate raw food; no risk (SunHelm's raw food damage is off)", a_state.name);
+			return;
+		}
+		if (SunHelm::IsImmuneToFoodPoisoning(&a_actor)) {
+			logger::info("{} ate raw food; immune to food poisoning", a_state.name);
 			return;
 		}
 
-		static std::mt19937                       engine{ std::random_device{}() };
-		static std::uniform_int_distribution<int> roll{ 0, 100 };
+		static std::mt19937 engine{ std::random_device{}() };
+		// 0-99 so "< 30" is exactly 30%. An inclusive 0-100 would have been 30/101.
+		static std::uniform_int_distribution<int> roll{ 0, 99 };
 
+		// SunHelm's fallback when diseases are switched off: a flat health bite instead of illness.
 		if (!SunHelm::DiseasesEnabled()) {
 			static std::uniform_int_distribution<int> damage{ 0, 25 };
+			const auto                                dealt = damage(engine);
 			a_actor.AsActorValueOwner()->RestoreActorValue(
-				RE::ACTOR_VALUE_MODIFIER::kDamage, RE::ActorValue::kHealth, -static_cast<float>(damage(engine)));
+				RE::ACTOR_VALUE_MODIFIER::kDamage, RE::ActorValue::kHealth, -static_cast<float>(dealt));
+			logger::info("{} took {} damage from raw food (diseases are off in SunHelm)",
+				a_state.name, dealt);
 			return;
 		}
 
-		if (roll(engine) >= 30) {
+		constexpr int kPoisoningChance = 30;
+		const auto    rolled = roll(engine);
+		if (rolled >= kPoisoningChance) {
+			logger::info("{} ate raw food and got away with it (rolled {}, needed under {})",
+				a_state.name, rolled, kPoisoningChance);
 			return;
 		}
 
 		auto* poisoning = SunHelm::FoodPoisoningSpell();
-		if (poisoning && !a_actor.HasSpell(poisoning)) {
-			a_actor.AddSpell(poisoning);
-			logger::info("{} caught food poisoning from raw food", a_state.name);
-			if (Settings::Get().notifyConsumption) {
-				RE::DebugNotification(
-					std::format("{} looks unwell.", a_state.name).c_str());
-			}
+		if (!poisoning) {
+			logger::error("{} should have caught food poisoning (rolled {}) but the spell did not "
+						  "resolve - illness from raw food is not working",
+				a_state.name, rolled);
+			return;
+		}
+		if (a_actor.HasSpell(poisoning)) {
+			logger::info("{} ate raw food while already ill (rolled {})", a_state.name, rolled);
+			return;
+		}
+		a_actor.AddSpell(poisoning);
+		logger::info("{} caught food poisoning from raw food (rolled {})", a_state.name, rolled);
+		if (Settings::Get().notifyConsumption) {
+			RE::DebugNotification(std::format("{} looks unwell.", a_state.name).c_str());
 		}
 	}
 

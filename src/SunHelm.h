@@ -77,6 +77,12 @@ namespace SunHelm
 
 	RE::TESBoundObject* Gold();
 
+	// How much gold the actor is carrying. Deliberately not RE::Actor::GetGoldAmount(), which asks
+	// BGSDefaultObjectManager for the gold form and crashed the game doing it - see the comment on
+	// the implementation. Counts the same form Gold() hands out and RemoveItem takes back, so the
+	// affordability check and the payment can never disagree about what gold is.
+	std::int32_t GoldAmount(RE::Actor* a_actor);
+
 	// SunHelm's own drunk ability, and its MCM-configured number of drinks before it applies.
 	RE::SpellItem* DrunkSpell();
 	int            DrinksBeforeDrunk();

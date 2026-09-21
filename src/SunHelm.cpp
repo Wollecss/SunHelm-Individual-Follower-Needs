@@ -574,6 +574,37 @@ RE::TESBoundObject* SunHelm::Gold()
 	return g_forms.gold;
 }
 
+std::int32_t SunHelm::GoldAmount(RE::Actor* a_actor)
+{
+	// RE::Actor::GetGoldAmount() is the obvious call here and it is the one that crashed the game.
+	// It resolves gold through BGSDefaultObjectManager::GetObject(kGold), which indexes a parallel
+	// bool array - objectInit[kGold] - off the manager singleton. When that singleton isn't what
+	// CommonLibSSE-NG's layout expects, the index lands outside the process and the read faults
+	// inside the engine, where nothing we do on this side can catch it. The header carries three
+	// different table sizes for SE, AE and VR, which is the sort of thing that goes wrong quietly.
+	//
+	// Counting the form we resolved ourselves avoids the manager entirely, and is the better answer
+	// regardless: this is the same object Gold() returns and RemoveItem subtracts, so what a
+	// follower can afford and what actually leaves their purse are guaranteed to be the same thing.
+	auto* gold = g_forms.gold;
+	if (!a_actor || !gold) {
+		return 0;
+	}
+
+	const auto goldID = gold->GetFormID();
+	const auto counts = a_actor->GetInventoryCounts(
+		[goldID](RE::TESBoundObject& a_object) { return a_object.GetFormID() == goldID; });
+
+	// Summed rather than looked up by pointer so a second form sharing the ID can't slip past.
+	std::int32_t total = 0;
+	for (const auto& [object, count] : counts) {
+		if (count > 0) {
+			total += count;
+		}
+	}
+	return total;
+}
+
 RE::SpellItem* SunHelm::DrunkSpell()
 {
 	return g_forms.drunkSpell;

@@ -56,7 +56,7 @@ namespace
 		a_state.lastPurchaseHours[a_slot] = a_nowHours;
 
 		logger::info("{} bought '{}' for {} gold ({} left)", a_state.name, ItemLabel(item), a_price,
-			a_actor.GetGoldAmount());
+			SunHelm::GoldAmount(&a_actor));
 		if (Settings::Get().notifyConsumption) {
 			RE::DebugNotification(
 				std::format("{} buys {}.", a_state.name, ItemLabel(item)).c_str());
@@ -73,7 +73,7 @@ bool Tavern::TryPurchase(Followers::State& a_state, RE::Actor& a_actor)
 	}
 
 	const auto nowHours = RE::Calendar::GetSingleton()->GetHoursPassed();
-	const auto gold = a_actor.GetGoldAmount();
+	const auto gold = SunHelm::GoldAmount(&a_actor);
 
 	const auto hungry = settings.trackHunger && SunHelm::IsNeedEnabled(SunHelm::Need::kHunger) &&
 	                    SunHelm::StageOf(SunHelm::Need::kHunger, a_state.hunger) >= settings.eatAtStage;

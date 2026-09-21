@@ -137,7 +137,7 @@ namespace
 							SunHelm::AppliedStageOn(&a_actor, need);
 					}
 					entry["diseased"] = SunHelm::IsDiseased(&a_actor);
-					entry["gold"] = a_actor.GetGoldAmount();
+					entry["gold"] = SunHelm::GoldAmount(&a_actor);
 					entry["in_inn"] = SunHelm::IsInInn(&a_actor);
 					collected[a_state.formID] = std::move(entry);
 				});
