@@ -120,48 +120,44 @@ blocking hand-off is the only way to satisfy both. `status`/`set_need` don't nee
 touch our own mutex-guarded `Followers::State` structs, never the engine directly, so they answer
 straight from the listener thread.
 
-## CURRENT STATE (2026-09-20, end of session 2) - read this first
+## CURRENT STATE (2026-09-21, session 3) - read this first
 
-Persistence is **built and deployed, one test away from confirmed**. The Quest+alias plan below was
-abandoned; see "Persistence, as actually built" further down. Everything else is verified working
-in real gameplay.
+**Every core feature is verified working in real gameplay.** Everything is committed; last commit
+`a20f7e1`. The Quest+alias persistence plan further down was abandoned - see "Persistence, as
+actually built".
 
-**Verified live in-game this session** (Stenvar, FormID `000B998C`, save with hunger ~111):
-- Follower detection, need ticking at the live SunHelm rate (3.0/hr).
-- **Autonomous self-feeding works**: set hunger to 222, forced a tick, hunger became 147.045 -
-  exactly -75.0, SunHelm's medium-food restore. The item was genuinely consumed (a second attempt
-  found nothing left), confirming `ActorEquipManager::EquipObject` both applies the effect and
-  removes the item.
-- **All four notification paths confirmed on screen** by the user: "X has nothing to eat.",
-  "X has nothing to drink.", and the hunger/thirst stage-crossing announcements.
-- Storage globals written correctly: `_SHFN_Slot0_RefLo`=39308, `_SHFN_Slot0_RefHi`=11, which
-  recombine to `(11<<16)|39308` = `0xB998C` = Stenvar's FormID, byte-perfect.
+Verified live (Stenvar, FormID `000B998C`):
+- Follower detection, per-follower ticking at SunHelm's live rate (3.0/hr in this modlist).
+- **Self-feeding**: hunger set to 222 → after a tick it read 147.045, exactly -75.0 (SunHelm's
+  medium-food restore). A second attempt found nothing left, so `ActorEquipManager::EquipObject`
+  both applies the effect and genuinely consumes the item.
+- **All four notification paths** seen on screen: "X has nothing to eat.", "X has nothing to
+  drink.", and both stage-crossing announcements.
+- **Persistence**, across a full overnight process restart: values written before a save came back
+  as `Read slot: 000B998C hunger=300.9 thirst=200.9`. So a raw `TESGlobal::value` write plus
+  `AddChange(0x01)` *does* persist - that question is settled.
+- **Debuff abilities**, read off the actor's real spell list via `SunHelm::AppliedStageOn`: with the
+  follower at Ravenous/Dehydrated and the player at Chilly/Rested, the follower carried hunger 4,
+  thirst 4, cold 2, fatigue 1. Confirms both that abilities land on followers and that mirrored
+  needs take the *player's* stage, not the follower's.
 
-**The one open question**: does a raw `TESGlobal::value` write get persisted into a save? The first
-save/reload test failed, but for a self-inflicted reason, now fixed: the poll loop kept ticking
-*during* the load, `Needs::Update()` didn't check game-ready, so a tick fired with an empty roster
-between `kPreLoadGame` and the save going live - and `Persistence::Save()` zeroed all ten slots
-before `Load()` could read them. We destroyed the evidence ourselves. `AddChange(0x01)` may well be
-fine; it's untested, not disproven.
+**ONLY PENDING TEST: settings persistence** (built, deployed, untested). Launch, open
+SunHelm Follower Needs → Settings, change something (e.g. Followers tracked → 5, accept the
+one-time warning popup; toggle an "Announce" off), **fully quit**, relaunch. Expected: changes stuck,
+and the log reads `Settings loaded (tracking up to 5 follower(s))` rather than defaulting to 3.
+The JSON should appear at `Data/SKSE/Plugins/SunHelmFollowerNeeds.json`, which under MO2's VFS most
+likely means `H:\Nolvus Awakening\MODS\overwrite\SKSE\Plugins\`. If it lands somewhere unexpected,
+adjust `kSettingsPath` in `src/Settings.cpp`.
 
-**EXACT NEXT STEP (tomorrow)**: the fixed DLL is already built and deployed. Launch, load a save
-with a follower, then:
-1. `sunhelm_followers.set_need` → hunger 300, thirst 200.
-2. `sunhelm_followers.force_tick` (runs `Persistence::Save`).
-3. Optionally confirm via console `show _SHFN_Slot0_Hunger` → ~300.
-4. **Save the game, then load that same save.**
-5. Read the log. The decisive line is `Persistence::Load read N populated slot(s) (schema 1)`:
-   - `read 1` + `Read slot: 000B998C hunger=300.x thirst=200.x` → **persistence works, mod is
-     feature-complete** against everything designed.
-   - `read 0` despite globals holding 300 pre-save → `AddChange(0x01)` is insufficient; reroute
-     writes through Papyrus `GlobalVariable.SetValue` via the VM (the path SunHelm provably
-     persists through). Contained fix, ~30 lines, no design change.
+**A trap worth remembering** (cost a full test cycle once): the poll loop keeps ticking *during* a
+save load. `Needs::Update()` is gated on `Followers::IsGameReady()` precisely because, without it, a
+tick fires between `kPreLoadGame` (which clears the roster) and the save going live, and
+`Persistence::Save()` zeroes every storage slot before `Load()` can read it. Any new write-on-tick
+work needs the same gate.
 
-   Note: on the FIRST load after this fix, `read 0` is expected and not a regression - the earlier
-   save really was zeroed by the old bug, so there is nothing to recover from it.
-
-Uncommitted at time of writing: the game-ready gate fix plus the new diagnostics (lifecycle
-logging, unconditional `Load()` logging, feeding log lines). Last commit was `3797a3d`.
+**After that, the remaining roadmap**: the CHIM bridge itself (the original point of the project,
+deliberately deferred until the core worked standalone - it now does), then release polish (readme,
+whether to ESL-flag the ESP, no debug residue), then creature followers (still deferred).
 
 ## Superseded plan - the Quest+alias approach, and why it was dropped
 Follower state (`Followers::g_tracked`) is **pure in-memory** right now - `Followers::Reset()` is
