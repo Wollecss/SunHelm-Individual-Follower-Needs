@@ -53,10 +53,12 @@ namespace
 			}
 			break;
 		case SKSE::MessagingInterface::kNewGame:
+			logger::info("kNewGame");
 			Followers::Reset();
 			Followers::SetGameReady(true);
 			break;
 		case SKSE::MessagingInterface::kPostLoadGame:
+			logger::info("kPostLoadGame");
 			// The storage globals only hold this save's values once it's live - reading them any
 			// earlier gets the ESP's compiled-in defaults instead.
 			Persistence::Load();
@@ -64,7 +66,10 @@ namespace
 			break;
 		case SKSE::MessagingInterface::kPreLoadGame:
 			// Clearing here keeps one save's followers from leaking into the next; whatever the
-			// incoming save stored is read back in kPostLoadGame.
+			// incoming save stored is read back in kPostLoadGame. Dropping game-ready first also
+			// stops the poll loop from writing an empty roster over the storage globals while the
+			// load is in flight.
+			logger::info("kPreLoadGame");
 			Followers::SetGameReady(false);
 			Followers::Reset();
 			break;

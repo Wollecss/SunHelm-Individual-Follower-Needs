@@ -82,6 +82,8 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 
 		if (candidate.object) {
 			Consume(a_actor, candidate);
+			logger::info("{} ate '{}' (-{:.0f} hunger, from {:.1f})", a_state.name,
+				ItemLabel(candidate.object), candidate.restore, a_state.hunger);
 			a_state.hunger = std::clamp(
 				a_state.hunger - candidate.restore, 0.0f, SunHelm::MaxLevel(SunHelm::Need::kHunger));
 
@@ -114,6 +116,8 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 
 		if (candidate.object) {
 			Consume(a_actor, candidate);
+			logger::info("{} drank '{}' (-{:.0f} thirst, from {:.1f})", a_state.name,
+				ItemLabel(candidate.object), candidate.restore, a_state.thirst);
 			a_state.thirst = std::clamp(
 				a_state.thirst - candidate.restore, 0.0f, SunHelm::MaxLevel(SunHelm::Need::kThirst));
 

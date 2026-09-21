@@ -180,10 +180,12 @@ void Persistence::Load()
 		// poll loop would treat an un-loaded entry as dismissed and purge it. The value is applied
 		// when that follower is next picked up.
 		Followers::SeedRestoredNeeds(formID, slot.hunger->value, slot.thirst->value);
+		logger::info("Read slot: {:08X} hunger={:.1f} thirst={:.1f}", formID, slot.hunger->value,
+			slot.thirst->value);
 		++restored;
 	}
 
-	if (restored > 0) {
-		logger::info("Restored needs for {} follower(s) from the save", restored);
-	}
+	// Logged even when nothing came back: "no line at all" is indistinguishable from "never ran",
+	// which cost a whole test cycle to untangle once already.
+	logger::info("Persistence::Load read {} populated slot(s) (schema {})", restored, storedSchema);
 }

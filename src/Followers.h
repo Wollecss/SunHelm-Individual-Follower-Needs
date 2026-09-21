@@ -36,6 +36,7 @@ namespace Followers
 	// kPostLoadGame / kNewGame set this true, kPreLoadGame clears it. Nothing touches an actor
 	// while it is false: kDataLoaded also fires at the main menu, where there is no loaded world.
 	void SetGameReady(bool a_ready);
+	bool IsGameReady();
 
 	// Drops all tracking and any pending restores. A loaded save brings its own followers, and
 	// stale entries from the previous session would otherwise leak across.

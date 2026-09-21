@@ -234,6 +234,11 @@ void Followers::SetGameReady(bool a_ready)
 	g_gameReady.store(a_ready);
 }
 
+bool Followers::IsGameReady()
+{
+	return g_gameReady.load();
+}
+
 void Followers::Reset()
 {
 	std::lock_guard lock(g_mutex);

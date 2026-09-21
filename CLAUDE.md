@@ -120,7 +120,50 @@ blocking hand-off is the only way to satisfy both. `status`/`set_need` don't nee
 touch our own mutex-guarded `Followers::State` structs, never the engine directly, so they answer
 straight from the listener thread.
 
-## NOT done yet - persistence is blocked, not skipped
+## CURRENT STATE (2026-09-20, end of session 2) - read this first
+
+Persistence is **built and deployed, one test away from confirmed**. The Quest+alias plan below was
+abandoned; see "Persistence, as actually built" further down. Everything else is verified working
+in real gameplay.
+
+**Verified live in-game this session** (Stenvar, FormID `000B998C`, save with hunger ~111):
+- Follower detection, need ticking at the live SunHelm rate (3.0/hr).
+- **Autonomous self-feeding works**: set hunger to 222, forced a tick, hunger became 147.045 -
+  exactly -75.0, SunHelm's medium-food restore. The item was genuinely consumed (a second attempt
+  found nothing left), confirming `ActorEquipManager::EquipObject` both applies the effect and
+  removes the item.
+- **All four notification paths confirmed on screen** by the user: "X has nothing to eat.",
+  "X has nothing to drink.", and the hunger/thirst stage-crossing announcements.
+- Storage globals written correctly: `_SHFN_Slot0_RefLo`=39308, `_SHFN_Slot0_RefHi`=11, which
+  recombine to `(11<<16)|39308` = `0xB998C` = Stenvar's FormID, byte-perfect.
+
+**The one open question**: does a raw `TESGlobal::value` write get persisted into a save? The first
+save/reload test failed, but for a self-inflicted reason, now fixed: the poll loop kept ticking
+*during* the load, `Needs::Update()` didn't check game-ready, so a tick fired with an empty roster
+between `kPreLoadGame` and the save going live - and `Persistence::Save()` zeroed all ten slots
+before `Load()` could read them. We destroyed the evidence ourselves. `AddChange(0x01)` may well be
+fine; it's untested, not disproven.
+
+**EXACT NEXT STEP (tomorrow)**: the fixed DLL is already built and deployed. Launch, load a save
+with a follower, then:
+1. `sunhelm_followers.set_need` → hunger 300, thirst 200.
+2. `sunhelm_followers.force_tick` (runs `Persistence::Save`).
+3. Optionally confirm via console `show _SHFN_Slot0_Hunger` → ~300.
+4. **Save the game, then load that same save.**
+5. Read the log. The decisive line is `Persistence::Load read N populated slot(s) (schema 1)`:
+   - `read 1` + `Read slot: 000B998C hunger=300.x thirst=200.x` → **persistence works, mod is
+     feature-complete** against everything designed.
+   - `read 0` despite globals holding 300 pre-save → `AddChange(0x01)` is insufficient; reroute
+     writes through Papyrus `GlobalVariable.SetValue` via the VM (the path SunHelm provably
+     persists through). Contained fix, ~30 lines, no design change.
+
+   Note: on the FIRST load after this fix, `read 0` is expected and not a regression - the earlier
+   save really was zeroed by the old bug, so there is nothing to recover from it.
+
+Uncommitted at time of writing: the game-ready gate fix plus the new diagnostics (lifecycle
+logging, unconditional `Load()` logging, feeding log lines). Last commit was `3797a3d`.
+
+## Superseded plan - the Quest+alias approach, and why it was dropped
 Follower state (`Followers::g_tracked`) is **pure in-memory** right now - `Followers::Reset()` is
 called on `kNewGame`/`kPreLoadGame`, so every load starts every follower fresh. The design (agreed
 with the user) is a thin, inert Papyrus alias quest - N `ReferenceAlias` slots with a tiny attached
@@ -157,8 +200,33 @@ sanity-check the result if it silently writes something subtly wrong.
    engine-provided versioning) and reintroduces bespoke serialization code, but it doesn't need an
    ESP at all.
 
-Until this is resolved, the plugin is fully playable and testable, just non-persistent across
-saves - acceptable for continued dev/test but not for release.
+## Persistence, as actually built
+
+The alias plan above was dropped for the GlobalVariable bank described here - simpler, needs no CK,
+no Caprica, no `.pex`, and keeps the plugin fully native.
+
+`esp/SunHelmFollowerNeeds.esp` contains **only 41 GlobalVariable records** - no quest, no aliases,
+no script attachments, therefore no VMAD anywhere, which is what sidesteps the Mutagen bug. It is
+reproducible: `esp/gen_esp_yaml.sh <outdir>` regenerates the YAML, then
+`spriggit deserialize --InputPath <outdir> --OutputPath <esp> --PackageName Spriggit.Yaml.Skyrim
+--PackageVersion 0.41.0` rebuilds the plugin (note: `deserialize` takes NO `--GameRelease`; it reads
+that from the YAML metadata, unlike `serialize` which requires it). Verified to round-trip
+byte-identically.
+
+Layout: `_SHFN_SchemaVersion` plus, per slot 0-9, `_SHFN_Slot{N}_{RefLo,RefHi,Hunger,Thirst}`
+(FormIDs `000800`-`000828`). A follower's FormID is split into two 16-bit halves because a float32
+mantissa holds integers exactly only up to 2^24 - a whole 32-bit FormID would lose precision, each
+half is lossless. `Settings::kMaxSlots` MUST equal `SLOTS` in `esp/gen_esp_yaml.sh`.
+
+Resolved by EditorID (globals keep theirs at runtime), so renumbering or a later ESL flag is safe.
+Written every tick rather than on a save hook, since the engine captures whatever a global holds
+whenever the player saves. Read back at `kPostLoadGame` and staged as *pending restores* applied
+when that follower is next detected - the actor usually isn't loaded yet that early, and the poll
+loop would otherwise purge an unloaded entry as dismissed. Restoration matches on stored FormID, not
+slot index, so slots shifting as the party changes is harmless.
+
+**The ESP must be activated in MO2's plugins pane**, not just the mod enabled. Without it the plugin
+runs fine but logs `SunHelmFollowerNeeds.esp is not loaded` and persistence sits out.
 
 ## Design decisions locked in this session (don't re-litigate without reason)
 - Humanoid followers only; creatures deferred.

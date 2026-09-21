@@ -146,7 +146,12 @@ namespace
 
 void Needs::Update()
 {
-	if (!SunHelm::IsAvailable() || !Settings::Get().enabled || !SunHelm::IsModEnabled()) {
+	// The game-ready gate matters most for the save write below. Between kPreLoadGame (which clears
+	// the tracked set) and the save actually being live, a tick here would see an empty roster and
+	// happily zero every storage slot - wiping the very values the incoming save is about to be
+	// read for.
+	if (!Followers::IsGameReady() || !SunHelm::IsAvailable() || !Settings::Get().enabled ||
+		!SunHelm::IsModEnabled()) {
 		return;
 	}
 
