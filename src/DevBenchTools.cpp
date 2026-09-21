@@ -115,6 +115,23 @@ namespace
 				AbilityMap collected;
 				Followers::ForEachTracked([&collected](Followers::State& a_state, RE::Actor& a_actor) {
 					json entry;
+
+					// Everything past this gate reaches into state that only exists for a loaded
+					// actor: inventory changes for the gold count, the current location for the inn
+					// check, the applied spell list. Needs::Update keeps all of it behind
+					// State::active for that reason, and this tool ignoring the same guard is what
+					// crashed the game - reading an unloaded follower's inventory faults inside the
+					// engine, so no amount of null-checking on our side would have caught it.
+					// Reported rather than skipped, because "not loaded" is a different answer from
+					// "no abilities applied" and the whole point of this tool is telling them apart.
+					const bool loaded = a_actor.Is3DLoaded();
+					entry["loaded"] = loaded;
+					entry["active"] = a_state.active;
+					if (!loaded) {
+						collected[a_state.formID] = std::move(entry);
+						return;
+					}
+
 					for (const auto need : SunHelm::kAllNeeds) {
 						entry[std::string(SunHelm::NeedName(need))] =
 							SunHelm::AppliedStageOn(&a_actor, need);

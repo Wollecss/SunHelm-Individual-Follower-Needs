@@ -92,6 +92,18 @@ A reasonable manual pass:
 With [DevBench](https://github.com/ozooma10/DevBench) installed you can drive most of this directly
 via `sunhelm_followers.status`, `set_need` and `force_tick` instead of waiting on game time.
 
+### Reading a crash log
+
+Crash Logger reports offsets into `SunHelmFollowerNeeds.dll` rather than function names. The build
+writes `build/release/SunHelmFollowerNeeds.map` for exactly this: subtract the image base
+(`0x180000000`) from each `Rva+Base` in that file and take the nearest symbol at or below the
+reported offset.
+
+The map has to come from **the same build as the DLL that crashed**, so copy it aside before
+rebuilding - a rebuilt map silently shifts every address. Note also that Skyrim's "PROBABLE CALL
+STACK" is a stack scan, not a real unwind: expect stale frames mixed in with the genuine ones. Trust
+frames that form a coherent calling chain, and treat isolated ones as noise.
+
 ---
 
 ## Pull requests

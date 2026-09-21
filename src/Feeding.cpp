@@ -128,13 +128,7 @@ namespace
 		RE::ActorEquipManager::GetSingleton()->EquipObject(&a_actor, a_candidate.object);
 	}
 
-	std::string ItemLabel(RE::TESBoundObject* a_object)
-	{
-		if (auto* named = a_object->As<RE::TESFullName>(); named && named->GetFullName()[0] != '\0') {
-			return named->GetFullName();
-		}
-		return "something";
-	}
+	using SunHelm::ItemLabel;
 }
 
 void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)

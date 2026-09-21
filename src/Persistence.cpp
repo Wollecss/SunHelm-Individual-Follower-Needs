@@ -68,16 +68,18 @@ namespace
 bool Persistence::Resolve()
 {
 	auto* handler = RE::TESDataHandler::GetSingleton();
-	// Both lists have to be checked. ESL-flagged plugins live in a separate "light" load order, so
-	// LookupLoadedModByName alone silently stops finding this plugin the moment it is flagged -
-	// which is exactly what happened when it was, disabling persistence without any other symptom.
-	const auto loaded = handler && (handler->LookupLoadedModByName(kPluginName) ||
-									   handler->LookupLoadedLightModByName(kPluginName));
-	if (!loaded) {
-		logger::warn("{} is not loaded - follower needs will not survive a save/load", kPluginName);
+	if (!handler) {
 		g_available = false;
 		return false;
 	}
+
+	// Deliberately no "is the plugin loaded" precheck. That asked the wrong question: what actually
+	// matters is whether the storage globals can be found, and they're matched by EditorID, which
+	// doesn't care about load order at all. The precheck also got it wrong - neither
+	// LookupLoadedModByName nor LookupLoadedLightModByName found this plugin once it was
+	// ESL-flagged, even though the game had loaded it and its globals were readable from the
+	// console. Resolving them is both the simpler test and the honest one, and it keeps working if
+	// the plugin is renamed, flagged, or merged into another.
 
 	// Matched by EditorID rather than FormID for the same reason SunHelm's own globals are: a
 	// TESGlobal keeps its EditorID at runtime, so this survives the plugin being renumbered, and
@@ -121,7 +123,9 @@ bool Persistence::Resolve()
 	}
 
 	if (!g_available) {
-		logger::error("{} is loaded but its storage globals could not all be resolved", kPluginName);
+		logger::error("Storage globals not found - check that {} is enabled in your plugin list. "
+					  "Follower needs will not survive a save/load.",
+			kPluginName);
 		return false;
 	}
 

@@ -45,10 +45,20 @@ destroy it, the task wrote into freed memory. That crashed the game
 (`EXCEPTION_ACCESS_VIOLATION` reading `0xFFFFFFFFFFFFFFFF`, faulting on an unordered_map bucket
 lookup). Use `shared_ptr`-owned state and return by value. Never capture a local by reference.
 
-**5. `Settings::kMaxSlots` must equal `SLOTS` in `esp/gen_esp_yaml.sh`.** Otherwise
+**5. Diagnostic code gets the same actor guards as game code.** `Needs::Update()` keeps every deep
+engine read - inventory, location, purchases - behind `State::active` (`Is3DLoaded()` and not
+waiting). `Followers::ForEachTracked` visits *every* tracked follower, loaded or not, so a visitor
+that skips the gate reads state an unloaded actor doesn't have. The DevBench status tool did exactly
+that - `GetGoldAmount()`, `GetCurrentLocation()` and the spell list on unloaded followers - and
+crashed the game twice, faulting inside the engine where no null check of ours could have helped.
+The poll loop looked innocent because it was correctly gated; only calling the *diagnostic* killed
+the game. Report liveness as a field rather than skipping the follower: "not loaded" and "nothing
+applied" are different answers.
+
+**6. `Settings::kMaxSlots` must equal `SLOTS` in `esp/gen_esp_yaml.sh`.** Otherwise
 `Persistence::Resolve()` can't find every storage global and disables persistence.
 
-**6. Don't read GlobalVariable *values* at `kDataLoaded`.** That fires before save data is applied,
+**7. Don't read GlobalVariable *values* at `kDataLoaded`.** That fires before save data is applied,
 so you get the ESP's compiled-in defaults. Resolving forms there is correct; reading values is not.
 This produced a log line claiming hunger was `40.0` when the save actually held `111.38`.
 

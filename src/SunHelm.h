@@ -61,6 +61,11 @@ namespace SunHelm
 	float    HungerRestore(FoodKind a_kind);
 	float    ThirstRestore(FoodKind a_kind);
 
+	// An item's display name for logs and notifications, or "something" when it hasn't got a usable
+	// one. Never returns an empty string, and never trusts the pointer the engine hands back - see
+	// the implementation for why that matters.
+	std::string ItemLabel(RE::TESBoundObject* a_object);
+
 	// True while the actor is somewhere flagged as an inn - the same LocTypeInn check SunHelm uses
 	// to decide whether to skip its own party food scaling.
 	bool IsInInn(RE::Actor* a_actor);

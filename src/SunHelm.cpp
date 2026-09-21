@@ -484,6 +484,40 @@ float SunHelm::ThirstRestore(FoodKind a_kind)
 	}
 }
 
+std::string SunHelm::ItemLabel(RE::TESBoundObject* a_object)
+{
+	constexpr auto kFallback = "something";
+	if (!a_object) {
+		return kFallback;
+	}
+
+	// GetFullName() is not safe to dereference blind. It returns a raw const char* that can be null,
+	// and for a form whose name lives in a TESFullName backed by a container that has gone away it
+	// can be worse than null - and the two places this used to be written did `name[0] != '\0'` and
+	// then built a std::string from it, which is an unguarded read followed by a strlen over
+	// whatever that pointer happens to point at. A crash inside exactly that pattern
+	// (EXCEPTION_ACCESS_VIOLATION on `cmp byte ptr [rbx+rax*1], 0` reading 0xFFFFFFFFFFFFFFFF, which
+	// is a strlen walking a bad pointer) is why this exists as one hardened function instead of two
+	// copies. Bounding the scan also means a name that is somehow unterminated costs a wrong label
+	// rather than the process.
+	const auto* named = a_object->As<RE::TESFullName>();
+	if (!named) {
+		return kFallback;
+	}
+
+	const char* name = named->GetFullName();
+	if (!name) {
+		return kFallback;
+	}
+
+	constexpr std::size_t kMaxNameLength = 256;
+	const auto            length = ::strnlen(name, kMaxNameLength);
+	if (length == 0 || length == kMaxNameLength) {
+		return kFallback;
+	}
+	return std::string(name, length);
+}
+
 bool SunHelm::IsInInn(RE::Actor* a_actor)
 {
 	if (!a_actor || !g_forms.locTypeInn) {

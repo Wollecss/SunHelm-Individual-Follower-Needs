@@ -38,13 +38,7 @@ namespace
 		return roll(engine) < a_chance;
 	}
 
-	std::string ItemLabel(RE::TESBoundObject* a_object)
-	{
-		if (auto* named = a_object->As<RE::TESFullName>(); named && named->GetFullName()[0] != '\0') {
-			return named->GetFullName();
-		}
-		return "something";
-	}
+	using SunHelm::ItemLabel;
 
 	// Takes the coin and hands over the goods. The follower eats or drinks it later, through the
 	// same path they'd use for anything else in their pack.

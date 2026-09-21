@@ -85,6 +85,22 @@ namespace
 		       a_actor->AsActorValueOwner()->GetActorValue(RE::ActorValue::kWaitingForPlayer) != 1.0f;
 	}
 
+	// Same guarded read as SunHelm::ItemLabel, for the same reason: GetDisplayFullName() hands back a
+	// raw const char* that can be null, and building a std::string from it runs a strlen over
+	// whatever it points at. A name is only ever used for a log line or a notification, so falling
+	// back to the FormID is always preferable to trusting the pointer.
+	std::string ActorName(RE::Actor* a_actor)
+	{
+		const char* name = a_actor ? a_actor->GetDisplayFullName() : nullptr;
+		if (name) {
+			constexpr std::size_t kMaxNameLength = 256;
+			if (const auto length = ::strnlen(name, kMaxNameLength); length > 0 && length < kMaxNameLength) {
+				return std::string(name, length);
+			}
+		}
+		return std::format("{:08X}", a_actor ? a_actor->GetFormID() : 0);
+	}
+
 	void ClearAppliedSpells(RE::FormID a_formID)
 	{
 		auto* actor = RE::TESForm::LookupByID<RE::Actor>(a_formID);
@@ -155,7 +171,7 @@ namespace
 					// back from a loaded save, in which case their stored needs are restored.
 					Followers::State state{};
 					state.formID = formID;
-					state.name = actor->GetDisplayFullName();
+					state.name = ActorName(actor);
 					state.lastTickHours = RE::Calendar::GetSingleton()->GetHoursPassed();
 					state.active = IsActive(actor);
 
@@ -172,7 +188,7 @@ namespace
 				} else {
 					it->second.active = IsActive(actor);
 					if (it->second.name.empty()) {
-						it->second.name = actor->GetDisplayFullName();
+						it->second.name = ActorName(actor);
 					}
 				}
 			}

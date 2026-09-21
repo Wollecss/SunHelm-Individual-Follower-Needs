@@ -26,6 +26,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /external:W0)
+    # A linker map alongside the DLL. Crash logs report raw offsets into this module, and without a
+    # map (or the exact matching PDB, which is gone the moment you rebuild) those offsets can't be
+    # turned back into function names - which cost a real diagnosis once already.
+    target_link_options(${PROJECT_NAME} PRIVATE /MAP:$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.map)
 endif()
 
 if(DEFINED OUTPUT_FOLDER)
