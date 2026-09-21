@@ -179,6 +179,37 @@ empties their pack in seconds.
 
 ---
 
+## Taverns and drinking
+
+Buying always produces an **item**, never relief. SunHelm's player version applies relief instantly
+because you clicked a dialogue option, but a follower's purchase just drops the item in their pack
+and the ordinary feeding path consumes it on a later tick. That reuses the consumption, the restore
+values, the cooldown and the logging instead of growing a second path that could drift from the
+first. Purchasable items come from SunHelm's own FormLists, so whatever the innkeeper hands over is
+guaranteed to classify correctly on the way back in.
+
+**Three purchase slots, not one.** Food, water and ale each have their own cooldown. Sharing a slot
+between water and ale meant buying water locked out ale for a full hour, which is most of why
+drunkenness was previously unreachable. Ale's own cooldown is the setting that decides what an
+evening costs, because a follower keeps ordering for as long as they are in the inn.
+
+**Ale is chosen before water, not as a fallback.** A thirsty follower rolls a configurable chance to
+order ale. The older rule - ale only when water is unaffordable - meant a funded follower in a tavern
+always drank water, and ale was effectively dead. Ale restores half what water does, so the
+preference costs them something real.
+
+**Two timers, deliberately separate.** `drinkStackWindowHours` decides how long a drink keeps
+counting toward SunHelm's drinks-before-drunk threshold; `soberUpHours` decides how long the effect
+lasts after leaving. One number could not do both jobs: drinks want to accumulate slowly across an
+evening, while the effect should not outlast the walk home by half a day. The two must stay in
+proportion - a stacking window shorter than the time it takes to buy three rounds makes drunkenness
+unreachable by purchase. That is a legitimate configuration, so it is documented rather than clamped.
+
+**Inside an inn a follower never sobers up**, however long they are there, because they are still
+ordering. Leaving is what starts the clock.
+
+---
+
 ## Threading rules
 
 - The poll thread **never** touches the engine. It only queues work.

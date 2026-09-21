@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(SunHelmFollowerNeeds VERSION 1.2.0 LANGUAGES CXX)
+project(SunHelmFollowerNeeds VERSION 1.3.0 LANGUAGES CXX)
 
 # The MO2 mod folder is named with spaces/hyphens to match the Nexus-style mod name, which a CMake
 # target name can't contain - so it's set explicitly rather than derived from ${PROJECT_NAME}.

@@ -10,3 +10,6 @@ build_plugin.bat
 .vscode/settings.json
 .idea/
 cmake-build*/
+
+# Packaged release archives
+dist/

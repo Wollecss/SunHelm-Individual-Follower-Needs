@@ -27,9 +27,17 @@ them working through an entire pack in one go.
 
 **They buy their own food and drink at inns.** Inside an inn, a hungry or thirsty follower spends
 their *own* gold on a meal, water or ale, at the prices SunHelm charges you at the same innkeepers.
-Most followers carry very little coin, so fund them if you want them self-sufficient on the road -
-and they'll occasionally buy a drink in a tavern simply because they're in one. Enough of those and
-they'll get drunk, using SunHelm's own drunk effect.
+Most followers carry very little coin, so fund them if you want them self-sufficient on the road.
+
+**And they drink like people in a tavern.** A thirsty follower at a bar usually orders ale rather
+than water, because nobody walks into an inn and asks for water - and ale quenches half as much, so
+it's a real choice rather than a free one. They'll have one for the company too, not only for the
+thirst. Enough across an evening and they're drunk, using SunHelm's own drunk effect, and they carry
+on ordering like anyone else would. Walk out and it wears off on the way home.
+
+Drinking themselves under the table on their own coin is the slow, cheap route - a round every couple
+of hours, a few gold an hour. If you *want* a follower drunk, give them drinks. Every part of this is
+on a slider, from how often they order to how long it lasts.
 
 **They can get sick.** Once Ravenous, a follower will eat raw meat rather than starve, and runs
 SunHelm's own risk of food poisoning for it. An ill follower carrying a cure disease potion will
@@ -119,11 +127,27 @@ cosmetically. This mod gives each follower their own real, independent hunger an
 
 ## Installation
 
-1. Install with a mod manager, or extract into `Data/`.
-2. **Enable `SunHelmFollowerNeeds.esp`** in your plugin list. Without it the mod still runs, but
+1. Download the archive from [Releases](../../releases).
+2. Install it with Mod Organizer 2 or Vortex exactly as it comes - the archive is already laid out
+   the way a mod manager expects. Or extract it into `Data/` by hand.
+3. **Enable `SunHelmFollowerNeeds.esp`** in your plugin list. Without it the mod still runs, but
    cannot save follower needs between sessions - and it says so in the log.
 
-That's it. Followers are detected automatically when recruited.
+That's it. Followers are detected automatically when recruited, with no spell to cast and nothing to
+configure first.
+
+**Updating** is a straight overwrite. Settings live in a JSON file that is read at startup and any
+new options simply appear at their defaults, so nothing needs resetting. Needs are stored in the
+save, not the file, and survive the swap.
+
+**Uninstalling** mid-playthrough is safe, with one thing worth doing first. The mod adds no scripts
+and no quest, so removing it leaves nothing running - only some unread global variables in the save.
+
+But a follower carrying a SunHelm stage ability keeps it, and with the mod gone nothing will ever
+take it off again: SunHelm manages those on the player, not on your companions. **Dismiss your
+followers before uninstalling** and the mod strips their abilities on the way out. If you forget, the
+ability can still be removed from the console with `player.removespell`, or by reinstalling, hiring
+them, and dismissing them properly.
 
 ---
 
@@ -235,7 +259,7 @@ eating something you expect, the log says so explicitly rather than failing sile
 A healthy startup looks like:
 
 ```
-SunHelm Follower Needs v1.0.0.0 loaded
+SunHelm Follower Needs v1.3.0.0 loaded
 Settings loaded (tracking up to 3 follower(s))
 SunHelm resolved (forms found; values not read until the first tick)
 Persistence ready (10 slots)
