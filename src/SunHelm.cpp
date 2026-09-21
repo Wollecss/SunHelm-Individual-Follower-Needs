@@ -157,26 +157,56 @@ namespace
 
 		// FormLists and Spells don't keep an EditorID at runtime, so these have to go by FormID.
 		// IDs were read out of SunHelmSurvival.esp directly rather than copied from anywhere.
-		const auto list = [&](RE::FormID a_id) {
-			return handler->LookupForm<RE::BGSListForm>(a_id, SunHelm::kPluginName);
+		// A miss is logged rather than left silent: a null FormList quietly turns every membership
+		// test into "no", which looks identical to an item simply not being food or drink.
+		const auto list = [&](RE::FormID a_id, const char* a_name) {
+			auto* found = handler->LookupForm<RE::BGSListForm>(a_id, SunHelm::kPluginName);
+			if (!found) {
+				logger::error("Could not resolve SunHelm FormList {} ({:06X})", a_name, a_id);
+			}
+			return found;
 		};
 
-		g_forms.foodLightList = list(0x01EDB5);
-		g_forms.foodMediumList = list(0x01EDB6);
-		g_forms.foodHeavyList = list(0x01EDB7);
-		g_forms.soupList = list(0x029A62);
-		g_forms.drinkList = list(0x2A7941);
-		g_forms.drinkNoBottleList = list(0x497B97);
-		g_forms.alcoholList = list(0x33F759);
-		g_forms.rawList = list(0x1A04C7);
-		g_forms.foodIgnoreList = list(0x09E19D);
-		g_forms.waterskinList = list(0x4E3ABA);
+		g_forms.foodLightList = list(0x01EDB5, "_SHFoodLightList");
+		g_forms.foodMediumList = list(0x01EDB6, "_SHFoodMediumList");
+		g_forms.foodHeavyList = list(0x01EDB7, "_SHFoodHeavyList");
+		g_forms.soupList = list(0x029A62, "_SHSoupList");
+		g_forms.drinkList = list(0x2A7941, "_SHDrinkList");
+		g_forms.drinkNoBottleList = list(0x497B97, "_SHDrinkNoBottle");
+		g_forms.alcoholList = list(0x33F759, "_SHAlcoholList");
+		g_forms.rawList = list(0x1A04C7, "_SHRawList");
+		g_forms.foodIgnoreList = list(0x09E19D, "_SHFoodIgnoreList");
+		g_forms.waterskinList = list(0x4E3ABA, "_SHWaterskins");
 
+		int missingSpells = 0;
 		for (std::size_t need = 0; need < kNeedCount; ++need) {
 			for (std::size_t stage = 0; stage < kStageCount; ++stage) {
-				g_forms.stageSpells[need][stage] =
+				auto* spell =
 					handler->LookupForm<RE::SpellItem>(kStageSpellIDs[need][stage], SunHelm::kPluginName);
+				if (!spell) {
+					++missingSpells;
+				}
+				g_forms.stageSpells[need][stage] = spell;
 			}
+		}
+		if (missingSpells > 0) {
+			logger::error("{} of {} SunHelm stage abilities could not be resolved - follower "
+						  "penalties will be incomplete",
+				missingSpells, kNeedCount * kStageCount);
+		}
+
+		int missingKeywords = 0;
+		for (auto* keyword : { g_forms.lightFood, g_forms.mediumFood, g_forms.heavyFood, g_forms.soup,
+				 g_forms.drink, g_forms.alcohol, g_forms.saltWater, g_forms.foodIgnore,
+				 g_forms.meadWater, g_forms.wineWater, g_forms.sujammaWater, g_forms.rawFood }) {
+			if (!keyword) {
+				++missingKeywords;
+			}
+		}
+		if (missingKeywords > 0) {
+			logger::error("{} food/drink keyword(s) could not be resolved - items will be "
+						  "misclassified",
+				missingKeywords);
 		}
 	}
 
@@ -307,21 +337,38 @@ SunHelm::FoodKind SunHelm::Classify(RE::TESBoundObject* a_object)
 		return a_list && a_list->HasForm(a_object);
 	};
 
-	// Exclusions first, matching the order _SHEatDetection/_SHDrinkDetection check them in. Salt
-	// water and raw food are deliberately rejected rather than ranked: salt water *raises* thirst
-	// and raw food can inflict food poisoning, so neither is ever a sane pick for a follower.
-	if (hasKeyword(g_forms.foodIgnore) || inList(g_forms.foodIgnoreList)) {
-		return FoodKind::kIgnore;
-	}
+	// Salt water first, and unconditionally: SunHelm makes it *raise* thirst, so it must never be
+	// picked no matter what else it looks like.
 	if (hasKeyword(g_forms.saltWater)) {
 		return FoodKind::kSaltWater;
 	}
+
+	// Drinks are resolved BEFORE the food-ignore checks below, and that ordering is the whole
+	// point. _SHFoodIgnoreKeyword and _SHFoodIgnoreList mean "don't categorise this as food" - not
+	// "ignore this item". SunHelm's own _SHEatDetection deliberately files every drink there
+	// (see CheckIgnoreCategorization) because drinks belong to _SHDrinkDetection instead, so the
+	// list ships containing both water bottles and all three waterskins. Testing the ignore list
+	// first therefore made every water source in the game unclassifiable, and followers would eat
+	// happily but never drink.
+	if (inList(g_forms.waterskinList)) {
+		return FoodKind::kWaterskin;
+	}
+	if (hasKeyword(g_forms.alcohol) || inList(g_forms.alcoholList)) {
+		return FoodKind::kAlcohol;
+	}
+	if (hasKeyword(g_forms.drink) || hasKeyword(g_forms.meadWater) || hasKeyword(g_forms.wineWater) ||
+		hasKeyword(g_forms.sujammaWater) || inList(g_forms.drinkList) || inList(g_forms.drinkNoBottleList)) {
+		return FoodKind::kDrink;
+	}
+
+	// Raw food can inflict food poisoning, so it's rejected rather than ranked.
 	if (hasKeyword(g_forms.rawFood) || inList(g_forms.rawList)) {
 		return FoodKind::kRaw;
 	}
 
-	if (inList(g_forms.waterskinList)) {
-		return FoodKind::kWaterskin;
+	// Anything still here that SunHelm has marked as not-food really isn't food.
+	if (hasKeyword(g_forms.foodIgnore) || inList(g_forms.foodIgnoreList)) {
+		return FoodKind::kIgnore;
 	}
 
 	// Soup is checked before the food tiers because it restores thirst and warmth on top of the
@@ -337,14 +384,6 @@ SunHelm::FoodKind SunHelm::Classify(RE::TESBoundObject* a_object)
 	}
 	if (hasKeyword(g_forms.heavyFood) || inList(g_forms.foodHeavyList)) {
 		return FoodKind::kHeavy;
-	}
-
-	if (hasKeyword(g_forms.alcohol) || inList(g_forms.alcoholList)) {
-		return FoodKind::kAlcohol;
-	}
-	if (hasKeyword(g_forms.drink) || hasKeyword(g_forms.meadWater) || hasKeyword(g_forms.wineWater) ||
-		hasKeyword(g_forms.sujammaWater) || inList(g_forms.drinkList) || inList(g_forms.drinkNoBottleList)) {
-		return FoodKind::kDrink;
 	}
 
 	return FoodKind::kNone;

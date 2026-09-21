@@ -120,10 +120,15 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 			}
 		} else {
 			const auto stage = SunHelm::StageOf(SunHelm::Need::kHunger, a_state.hunger);
-			if (settings.notifyNeed[static_cast<std::size_t>(SunHelm::Need::kHunger)] &&
-				a_state.outOfSupplyNotifiedStage[0] != stage) {
+			if (a_state.outOfSupplyNotifiedStage[0] != stage) {
 				a_state.outOfSupplyNotifiedStage[0] = stage;
-				RE::DebugNotification(std::format("{} has nothing to eat.", a_state.name).c_str());
+				// Logged as well as announced. Without this, "found nothing edible" and "never
+				// looked" are indistinguishable in the log - which is exactly how a bug that made
+				// every drink unclassifiable stayed hidden for several sessions.
+				logger::info("{} found nothing to eat (hunger stage {})", a_state.name, stage);
+				if (settings.notifyNeed[static_cast<std::size_t>(SunHelm::Need::kHunger)]) {
+					RE::DebugNotification(std::format("{} has nothing to eat.", a_state.name).c_str());
+				}
 			}
 		}
 	}
@@ -149,10 +154,12 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 			}
 		} else {
 			const auto stage = SunHelm::StageOf(SunHelm::Need::kThirst, a_state.thirst);
-			if (settings.notifyNeed[static_cast<std::size_t>(SunHelm::Need::kThirst)] &&
-				a_state.outOfSupplyNotifiedStage[1] != stage) {
+			if (a_state.outOfSupplyNotifiedStage[1] != stage) {
 				a_state.outOfSupplyNotifiedStage[1] = stage;
-				RE::DebugNotification(std::format("{} has nothing to drink.", a_state.name).c_str());
+				logger::info("{} found nothing to drink (thirst stage {})", a_state.name, stage);
+				if (settings.notifyNeed[static_cast<std::size_t>(SunHelm::Need::kThirst)]) {
+					RE::DebugNotification(std::format("{} has nothing to drink.", a_state.name).c_str());
+				}
 			}
 		}
 	}
