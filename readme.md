@@ -25,6 +25,12 @@ inventory for something SunHelm recognises as food or drink and consume it throu
 consumption path - the item is genuinely used up and its effects really apply. A cooldown stops
 them working through an entire pack in one go.
 
+**And you can watch them do it.** With [Eating Animations and Sounds][eas] installed, a follower
+eating or drinking plays the same animation the player gets, for the ~115 items that mod covers. It
+is detected rather than configured: no patch, no load-order requirement, and nothing to set up.
+
+[eas]: https://www.nexusmods.com/skyrimspecialedition/mods/42602
+
 **They buy their own food and drink at inns.** Inside an inn, a hungry or thirsty follower spends
 their *own* gold on a meal, water or ale, at the prices SunHelm charges you at the same innkeepers.
 Most followers carry very little coin, so fund them if you want them self-sufficient on the road.
@@ -105,9 +111,13 @@ Source repository:
 | **SunHelm Survival** | Required - all rates, thresholds and food categories come from it |
 | **SunHelmFollowerNeeds.esp** | Must be enabled. ESL-flagged, so it costs no load order slot |
 | **SKSE Menu Framework** | *Optional.* Only needed for the in-game settings menu |
+| **Eating Animations and Sounds** | *Optional.* Only for the eating and drinking animations |
 
 Without SKSE Menu Framework the plugin runs perfectly well on its defaults - you simply can't change
 them in game. Settings can still be edited directly in the JSON file.
+
+Eating Animations and Sounds is detected, not configured. Install it and followers animate; leave it
+out and they consume silently. Nothing else changes either way.
 
 ### Compatibility
 
@@ -168,6 +178,7 @@ Found under **SunHelm Follower Needs** in the SKSE menu. All settings are writte
 | Eat / drink once they are | Peckish / Thirsty | How bad it gets before they act |
 | Eat raw food when desperate | On | Only once Ravenous, at SunHelm's risk of food poisoning |
 | Drink their own cure potions | On | An ill follower uses a cure potion you gave them |
+| Animate eating and drinking | On | Needs Eating Animations and Sounds. Inert without it |
 | Wait between meals | 0.25 hours | Game time before they eat or drink again. Zero removes the limit |
 | Buy food and drink at inns | On | Spends their own gold, at SunHelm's own prices |
 | Buy before raiding their own pack | Off | On means they'd rather spend coin than eat what they carry |
@@ -214,11 +225,10 @@ tracked follower. Ten is the hard ceiling, set by the number of storage slots in
 - **Buying needs gold in their pocket, not yours.** Most vanilla followers carry almost nothing, so
   this stays invisible until you fund them. The log says explicitly when one wanted a meal and
   couldn't afford it.
-- **No eating or drinking animation.** The item is consumed for real and its effects apply, but the
-  follower doesn't visibly eat or drink - food simply disappears from their pack. Animation mods such
-  as Eating Animations and Sounds hook `OnObjectEquipped` on a quest alias holding the *player*, so
-  nothing is listening when an NPC consumes something. Making followers animate needs work this mod
-  doesn't do yet.
+- **Animations need Eating Animations and Sounds.** With it installed followers eat and drink with
+  the same animations the player gets, across the ~115 items it covers. Without it - or for anything
+  outside its coverage - the item is still consumed for real and its effects still apply, it simply
+  disappears from their pack.
 - **Humanoid followers only.** Animal companions are not tracked.
 - **Food must be something SunHelm recognises.** Unrecognised food doesn't feed followers - but it
   doesn't feed the player either, so this fails in the same direction SunHelm does.
@@ -229,11 +239,6 @@ tracked follower. Ten is the hard ceiling, set by the number of storage slots in
 ## Planned
 
 Not promises, and not in any particular order - this is what the mod is likely to grow next.
-
-**Eating and drinking animations for followers.** Currently food is consumed silently. Doing this
-properly means driving the follower's behaviour graph directly, since the existing animation mods are
-scoped to the player, and deciding what should happen when a follower needs to eat while following
-you on the road.
 
 **Being cured by a healer.** Temple priests and apothecaries would offer to cure your followers'
 diseases through a dialogue option, paid for by the player, rather than every follower needing to

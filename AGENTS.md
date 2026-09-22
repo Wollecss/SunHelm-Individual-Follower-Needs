@@ -21,6 +21,20 @@ the log:
 If you change behaviour, say plainly that it is unverified until someone has run it. Do not describe
 compiling as testing.
 
+### The same rule applies to concluding something is impossible
+
+"Followers cannot be animated" was written into the readme, ARCHITECTURE.md and a code comment, as a
+settled fact, on the strength of reading one Papyrus script and finding `GetPlayer` in it. A user
+forked the repo, built it in an afternoon, and said so in the comments.
+
+The investigation stopped one layer too early: the alias script is only EAS's *trigger*, and the
+spell it casts animates whoever it lands on. Nothing in that conclusion was tested, and being wrong
+cost a feature that was always available.
+
+Before writing "this can't be done" anywhere a user will read it, follow the mechanism all the way
+down to whatever actually performs the effect. A player-only trigger does not imply a player-only
+mechanism.
+
 ---
 
 ## Invariants - break these and it fails silently

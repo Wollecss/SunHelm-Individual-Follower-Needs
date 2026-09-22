@@ -45,12 +45,33 @@ Consumption goes through `EquipObject` rather than a hand-rolled "remove item an
 sequence because it *is* the path the engine uses when any actor uses a potion. That gets item
 removal and effect application for free instead of reimplementing them.
 
-It does **not** get an animation, which an earlier version of this document wrongly claimed. Nothing
-plays when a follower eats: verified in game, with the item consumed and the need restored but no
-visible action. Animation mods of the Eating Animations and Sounds family drive their animations from
-a Papyrus `OnObjectEquipped` handler on a quest ReferenceAlias holding the **player**, so an NPC
-equipping food fires the event on itself with no listener attached. Animating followers would mean
-driving the behaviour graph directly rather than hoping a player-scoped mod picks it up.
+It does not get an animation by itself, so `EAS.cpp` asks for one separately.
+
+### How the animation actually happens
+
+Two earlier versions of this document got this wrong in opposite directions - first claiming the
+animation came free with `EquipObject`, then claiming it was impossible without behaviour-graph work.
+Both were wrong, and a user settled it by building the thing and reporting that it worked. What is
+actually going on in Eating Animations and Sounds:
+
+1. Its quest alias script watches the **player** equip a consumable and casts a per-item spell,
+   `aaz_<Item>_Animation_SP`, on them.
+2. That spell's magic effect carries a keyword, and its script plays the idle off `akCaster`.
+3. EAS ships DAR conditions of the form `HasMagicEffectWithKeyword(...)` that swap in the eating
+   animation for whoever holds that effect.
+
+Only step 1 is player-scoped. The effect script never asks who the actor is, and DAR only tests the
+effect - so casting the same spell on a follower animates the follower, with no behaviour graph
+involved. That is all `EAS::Play` does.
+
+The join from item to spell goes through keywords rather than a table of item FormIDs. EAS's KID ini
+tags every consumable it covers with `EASkey_<Item>`, using the same `<Item>` as the spell name, so
+reading the keyword off the item gives the spell's name directly - and anything a user adds to that
+ini is picked up without a code change.
+
+The lesson worth keeping: **the trigger being player-only is not the same as the mechanism being
+player-only.** The first investigation stopped at the alias script, found `GetPlayer`, and concluded
+the whole system was out of reach. The spell it casts was one layer further down.
 
 ---
 
@@ -75,6 +96,13 @@ Spriggit, not copied from documentation, and cross-checked against the values Su
 bridge hardcodes. Every lookup is verified and logs an error on failure - a null FormList silently
 turns every membership test into "no", which is indistinguishable from an item simply not being
 food.
+
+EAS's animation spells are the one place that tries both. The EditorID scan is preferred, because it
+survives EAS renumbering its forms and picks up addon plugins following the same naming - but it only
+works when powerofthree's Tweaks is installed to cache EditorIDs for types that don't keep one. When
+the scan comes up empty, `EAS.cpp` falls back to the FormIDs read out of `TaberuAnimation.esp`, so
+the feature doesn't quietly depend on an unrelated mod being present. The log says which route was
+used.
 
 The 24 stage abilities are mapped by their **display name** ("Hunger: Peckish"), not by FormID
 order - SunHelm's fatigue set is not in FormID order, so inferring from sequence would silently

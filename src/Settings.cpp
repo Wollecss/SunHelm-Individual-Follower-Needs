@@ -73,6 +73,7 @@ void Settings::Load()
 	ReadInto(parsed, "drunkEffects", g_data.drunkEffects);
 	ReadInto(parsed, "eatRawWhenDesperate", g_data.eatRawWhenDesperate);
 	ReadInto(parsed, "selfCureWithPotions", g_data.selfCureWithPotions);
+	ReadInto(parsed, "animateConsumption", g_data.animateConsumption);
 	ReadInto(parsed, "chimBridge", g_data.chimBridge);
 	ReadInto(parsed, "consumeCooldownHours", g_data.consumeCooldownHours);
 	ReadInto(parsed, "purchaseCooldownHours", g_data.purchaseCooldownHours);
@@ -128,6 +129,7 @@ void Settings::Save()
 	out["drunkEffects"] = g_data.drunkEffects;
 	out["eatRawWhenDesperate"] = g_data.eatRawWhenDesperate;
 	out["selfCureWithPotions"] = g_data.selfCureWithPotions;
+	out["animateConsumption"] = g_data.animateConsumption;
 	out["chimBridge"] = g_data.chimBridge;
 	out["consumeCooldownHours"] = g_data.consumeCooldownHours;
 	out["purchaseCooldownHours"] = g_data.purchaseCooldownHours;

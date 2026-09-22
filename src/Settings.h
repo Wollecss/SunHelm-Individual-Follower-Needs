@@ -49,6 +49,11 @@ namespace Settings
 		// can only do it if the player gave them one.
 		bool selfCureWithPotions{ true };
 
+		// Plays Eating Animations and Sounds' animation when a follower consumes something that
+		// mod covers. On by default and inert without it installed, so there is nothing to
+		// configure for people who don't have it and nothing to find for people who do.
+		bool animateConsumption{ true };
+
 		// Minimum game time between one follower's meals, and separately between their drinks.
 		// Without it, consumption is attempted every tick and a Ravenous follower empties their
 		// pack in seconds. At a default timescale 0.25 is roughly 45 real seconds.

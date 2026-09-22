@@ -1,5 +1,6 @@
 #include "UI.h"
 
+#include "EAS.h"
 #include "Followers.h"
 #include "Settings.h"
 #include "SunHelm.h"
@@ -227,6 +228,20 @@ void __stdcall UI::Config::Render()
 	ImGuiMCP::SetItemTooltip(
 		"An ill follower carrying a cure disease potion will drink it. They can only do this if "
 		"you gave them one.");
+
+	// Detected rather than declared, and the tooltip says which - "I turned it on and nothing
+	// happened" should be answerable from this page rather than from the log.
+	Toggle("Animate eating and drinking", &settings.animateConsumption);
+	if (EAS::IsAvailable()) {
+		ImGuiMCP::SetItemTooltip(
+			"Plays Eating Animations and Sounds' animation when a follower consumes something it "
+			"covers - %d items across %d animations. Detected and active.",
+			EAS::CoveredItemCount(), EAS::AnimationCount());
+	} else {
+		ImGuiMCP::SetItemTooltip(
+			"Plays Eating Animations and Sounds' animation when a follower eats or drinks. That "
+			"mod was not found, so this does nothing - followers still eat and drink normally.");
+	}
 
 	ImGuiMCP::SliderFloat("Wait between meals", &settings.consumeCooldownHours, 0.0f, 6.0f, "%.2f hours");
 	ImGuiMCP::SetItemTooltip(

@@ -1,5 +1,6 @@
 #include "Bridge.h"
 #include "DevBenchTools.h"
+#include "EAS.h"
 #include "Followers.h"
 #include "Persistence.h"
 #include "Settings.h"
@@ -51,6 +52,10 @@ namespace
 			// where there is no loaded world - form lookup is fine there, touching actors is not.
 			if (SunHelm::Resolve()) {
 				Persistence::Resolve();
+				// Soft dependency, and the only one resolved here that is allowed to come up
+				// empty: a false return means Eating Animations and Sounds isn't installed, which
+				// costs nothing but the animation.
+				EAS::Resolve();
 				Followers::Start();
 			}
 			break;

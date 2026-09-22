@@ -1,5 +1,6 @@
 #include "Feeding.h"
 
+#include "EAS.h"
 #include "Settings.h"
 #include "SunHelm.h"
 
@@ -146,18 +147,34 @@ namespace
 		return false;
 	}
 
-	void Consume(RE::Actor& a_actor, const Candidate& a_candidate)
+	// Returns whether an animation was played, so the caller's log line can say. Without that,
+	// "ate bread" reads identically whether EAS animated it, didn't cover it, or never resolved -
+	// and the first in-game test of this feature had no way to tell those apart from the log.
+	bool Consume(RE::Actor& a_actor, const Candidate& a_candidate)
 	{
 		// EquipObject on a potion/food item is the same native call the engine makes for any
 		// actor "using" one - it applies the item's effect and removes it from inventory itself,
 		// the same as a player quick-using food, so no manual RemoveItem is needed.
 		//
-		// It does NOT produce an animation, despite an earlier comment here claiming otherwise.
-		// Eating Animations and Sounds and its relatives listen on a quest ReferenceAlias holding
-		// the player, so an NPC equipping food fires OnObjectEquipped on itself with nothing
-		// listening. Followers consume silently; making them animate is unbuilt work, not a
-		// side effect of this call.
+		// It does NOT produce an animation on its own. Eating Animations and Sounds only watches
+		// the player equip something, so nothing reacts when a follower does. The animation is
+		// asked for separately below, in the same order EAS does it - equip first, then cast - so
+		// a follower eating looks the same as the player eating.
 		RE::ActorEquipManager::GetSingleton()->EquipObject(&a_actor, a_candidate.object);
+
+		return Settings::Get().animateConsumption && EAS::Play(a_actor, a_candidate.object);
+	}
+
+	// Only says anything when EAS is installed: with it absent the line logged at startup already
+	// explains the silence, and tagging every meal "no animation" would be noise. With it present,
+	// "not covered" is the useful answer - it means the item is outside EAS's list, not that this
+	// is broken.
+	const char* AnimationNote(bool a_animated)
+	{
+		if (!EAS::IsAvailable()) {
+			return "";
+		}
+		return a_animated ? " [animated]" : " [no EAS animation for this item]";
 	}
 
 	using SunHelm::ItemLabel;
@@ -193,11 +210,11 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 		const auto candidate = BestCandidate(a_actor, SunHelm::HungerRestore, wanted);
 
 		if (candidate.object) {
-			Consume(a_actor, candidate);
+			const auto animated = Consume(a_actor, candidate);
 			a_state.lastConsumedHours[0] = nowHours;
-			logger::info("{} ate{} '{}' (-{:.0f} hunger, from {:.1f})", a_state.name,
+			logger::info("{} ate{} '{}' (-{:.0f} hunger, from {:.1f}){}", a_state.name,
 				candidate.kind == SunHelm::FoodKind::kRaw ? " raw" : "", ItemLabel(candidate.object),
-				candidate.restore, a_state.hunger);
+				candidate.restore, a_state.hunger, AnimationNote(animated));
 			if (candidate.kind == SunHelm::FoodKind::kRaw) {
 				ApplyRawFoodRisk(a_state, a_actor);
 			}
@@ -253,14 +270,15 @@ void Feeding::TryEatAndDrink(Followers::State& a_state, RE::Actor& a_actor)
 		                           : BestCandidate(a_actor, SunHelm::ThirstRestore, kSocialKinds);
 
 		if (candidate.object) {
-			Consume(a_actor, candidate);
+			const auto animated = Consume(a_actor, candidate);
 			a_state.lastConsumedHours[1] = nowHours;
 			if (candidate.kind == SunHelm::FoodKind::kAlcohol) {
 				++a_state.drinksHad;
 				a_state.lastDrinkHours = nowHours;
 			}
-			logger::info("{} drank '{}' (-{:.0f} thirst, from {:.1f})", a_state.name,
-				ItemLabel(candidate.object), candidate.restore, a_state.thirst);
+			logger::info("{} drank '{}' (-{:.0f} thirst, from {:.1f}){}", a_state.name,
+				ItemLabel(candidate.object), candidate.restore, a_state.thirst,
+				AnimationNote(animated));
 			a_state.thirst = std::clamp(
 				a_state.thirst - candidate.restore, 0.0f, SunHelm::MaxLevel(SunHelm::Need::kThirst));
 
