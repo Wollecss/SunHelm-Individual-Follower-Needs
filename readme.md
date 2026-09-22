@@ -264,16 +264,42 @@ eating something you expect, the log says so explicitly rather than failing sile
 A healthy startup looks like:
 
 ```
-SunHelm Follower Needs v1.3.0.0 loaded
+SunHelm Follower Needs v1.4.0.0 loaded
 Settings loaded (tracking up to 3 follower(s))
 SunHelm resolved (forms found; values not read until the first tick)
 Persistence ready (10 slots)
+Eating Animations and Sounds resolved (98 animations, via EditorID)
 Follower poll loop started
 Tracking follower 'Lydia' in slot 1
 ```
 
+With Eating Animations and Sounds installed, each meal says whether it animated - and if it didn't,
+that the item simply isn't one EAS covers rather than something being broken:
+
+```
+Lydia ate 'Bread' (-25 hunger, from 210.4) [animated]
+Lydia drank 'Bottle of Water' (-80 thirst, from 216.4) [no EAS animation for this item]
+```
+
 If **DevBench** is installed, three diagnostic tools are registered for live inspection - see
 [ARCHITECTURE.md](ARCHITECTURE.md). They are inert when DevBench is absent.
+
+---
+
+## Credits
+
+**[hanshotfirst01](https://www.nexusmods.com/profile/hanshotfirst01)** worked out that followers
+could be animated, and proved it by forking this repo and building it. This readme had previously
+stated the opposite as settled fact - that animating followers needed behaviour-graph work outside
+this mod's scope - and that claim was simply wrong. The eating and drinking animations in 1.4.0
+exist because they went and checked instead of taking the documentation's word for it.
+
+**Anthony / Ashingda** for SunHelm Survival, which supplies every rate, threshold, restore value and
+food category this mod reads. Nothing here duplicates a SunHelm setting; it all comes from yours.
+
+**Akawashi** for Eating Animations and Sounds, whose per-item animation spells this mod casts on
+followers, and whose keyword-based design is what lets every EAS patch mod extend follower coverage
+for free.
 
 ---
 
