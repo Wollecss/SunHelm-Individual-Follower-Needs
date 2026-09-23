@@ -1,5 +1,13 @@
 # SunHelm - Individual Follower Needs
 
+> **This is the Skyrim 1.7 build**, for players on game version **1.7.104** or later. If you're on
+> 1.5.97 or 1.6.x, use the main build from the
+> [`main` branch](https://github.com/Wollecss/SunHelm-Individual-Follower-Needs/tree/main) instead.
+>
+> Skyrim 1.7 changed the game in ways that need SKSE plugins rebuilt against an updated
+> CommonLibSSE-NG. The only maintained one is licensed GPL-3.0, so **this build is GPL-3.0-or-later**
+> while the main build stays MIT - see [License](#license).
+
 **Your followers get hungry and thirsty on their own, and do something about it.**
 
 SunHelm Survival tracks hunger, thirst, fatigue and cold for the player. This SKSE plugin adds
@@ -107,7 +115,9 @@ Source repository:
 
 | Requirement | Notes |
 | --- | --- |
-| **SKSE64** | Required |
+| **Skyrim 1.7.104 or later** | This build. On 1.5.97 or 1.6.x, use the main build |
+| **SKSE64 2.3.1 or later** | Required - the first SKSE for 1.7.104 |
+| **Address Library for SKSE Plugins** | Required - the version for game version **1.7.104** |
 | **SunHelm Survival** | Required - all rates, thresholds and food categories come from it |
 | **SunHelmFollowerNeeds.esp** | Must be enabled. ESL-flagged, so it costs no load order slot |
 | **SKSE Menu Framework** | *Optional.* Only needed for the in-game settings menu |
@@ -305,7 +315,22 @@ for free.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+**This Skyrim 1.7 build is GPL-3.0-or-later.** See [LICENSE](LICENSE).
 
-The vendored DevBench API in `src/DevBench/` and the SKSE Menu Framework header in `include/` are
-third-party components under their own licenses; see the notices in those files.
+The main build, for 1.5.97 and 1.6.x, stays MIT. The difference is the library underneath: Skyrim
+1.7 support is only available from the maintained
+[CommonLibSSE-NG](https://github.com/alandtse/CommonLibSSE-NG), which is GPL-3.0. Its modding
+exception keeps Skyrim itself out of the GPL but not plugins, so a plugin that links it has to be
+GPL-compatible. The unmaintained MIT version it replaces has no 1.7 support.
+
+In practice little changes: the source was already public, and still is. If you redistribute this
+build, the GPL asks that you offer its source too - this repository's `skyrim-1.7` branch, and the
+exact CommonLibSSE-NG commit it builds against, pinned in `vcpkg-ports/commonlibsse-ng-alandtse/`.
+
+Vendored third-party components keep their own licences:
+
+- **DevBench API** (`src/DevBench/`) - MIT, notice in `DevBenchAPI.LICENSE.txt`
+- **SKSE Menu Framework header** (`include/SKSEMenuFramework.h`) - from
+  [SKSE Menu Framework 3](https://github.com/QTR-Modding/SKSE-Menu-Framework-3). The file carries no
+  licence notice of its own; the framework is GPL-3.0 and its example repository MIT, both of which
+  are compatible with this build.

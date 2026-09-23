@@ -18,15 +18,15 @@
             }
         },
         {
-            "name": "debug",
+            "name": "debug-1.7",
             "inherits": ["base"],
-            "displayName": "Debug",
+            "displayName": "Debug (Skyrim 1.7)",
             "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
         },
         {
-            "name": "release",
+            "name": "release-1.7",
             "inherits": ["base"],
-            "displayName": "Release",
+            "displayName": "Release (Skyrim 1.7)",
             "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
         }
     ]

@@ -35,15 +35,29 @@ Useful to state:
 - CMake 3.21+ and Ninja
 - [vcpkg](https://github.com/microsoft/vcpkg), with `VCPKG_ROOT` set
 
-Dependencies come from vcpkg: `commonlibsse-ng` (via the colorglass registry, pinned in
-`vcpkg-configuration.json`) and `nlohmann-json`.
+Dependencies come from vcpkg: `commonlibsse-ng-alandtse` and `nlohmann-json`.
+
+**This is the Skyrim 1.7 branch.** It builds against the maintained
+[CommonLibSSE-NG](https://github.com/alandtse/CommonLibSSE-NG) through an overlay port in
+`vcpkg-ports/commonlibsse-ng-alandtse/`, pinned to an exact commit. No vcpkg registry serves it:
+the colorglass registry `main` uses still carries CharmedBaryon's fork, which has no 1.7 support.
+The port's comments explain each build option it sets - every one works around something that
+broke at upstream's default.
+
+To move to a newer CommonLibSSE-NG, change `REF` and `SHA512` in that portfile, and the
+`default-registry` baseline in `vcpkg-configuration.json` to the `builtin-baseline` from upstream's
+own `vcpkg.json` at that commit, so the dependencies meet its minimum versions.
 
 **Configure and build**
 
 ```bash
-cmake --preset release
-cmake --build build/release --config Release
+cmake --preset release-1.7
+cmake --build build/release-1.7 --config Release
 ```
+
+The presets are named differently from `main`'s on purpose, so the two branches never share a
+build folder. Their vcpkg packages are incompatible, and switching branches onto a shared folder
+would quietly build against the wrong library.
 
 Set `SKYRIM_MODS_FOLDER` to your mod manager's mods directory and the build copies the DLL straight
 into `SunHelm - Individual Follower Needs/SKSE/Plugins/` on success. Alternatively set
@@ -95,7 +109,7 @@ via `sunhelm_followers.status`, `set_need` and `force_tick` instead of waiting o
 ### Reading a crash log
 
 Crash Logger reports offsets into `SunHelmFollowerNeeds.dll` rather than function names. The build
-writes `build/release/SunHelmFollowerNeeds.map` for exactly this: subtract the image base
+writes `build/release-1.7/SunHelmFollowerNeeds.map` for exactly this: subtract the image base
 (`0x180000000`) from each `Rva+Base` in that file and take the nearest symbol at or below the
 reported offset.
 
@@ -119,4 +133,10 @@ frames that form a coherent calling chain, and treat isolated ones as noise.
 
 ## License
 
-Contributions are accepted under the MIT license that covers this project.
+This branch is GPL-3.0-or-later; `main` is MIT. Contributions to each are accepted under that
+branch's licence.
+
+**Send features to `main`, not here.** MIT code can be merged into this branch freely, so anything
+landing on `main` reaches both builds. GPL code can't go the other way without its author agreeing
+to relicense it, so a feature contributed only here would be stuck on 1.7. This branch is for what
+genuinely differs between the two: the library, the build setup, and anything 1.7 changed.

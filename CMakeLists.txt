@@ -6,8 +6,12 @@ project(SunHelmFollowerNeeds VERSION 1.4.0 LANGUAGES CXX)
 # target name can't contain - so it's set explicitly rather than derived from ${PROJECT_NAME}.
 # Deliberately distinct from the existing "Sunhelm - Follower Needs and Needs Based Fast Travel"
 # mod, which does something different (it scales the player's own relief and mirrors stages).
+#
+# This branch deploys to its own folder, never the main line's. Otherwise building it would
+# overwrite the DLL a 1.5.97 / 1.6 player is actually running, with a build made against a
+# different library.
 if(DEFINED ENV{SKYRIM_MODS_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_MODS_FOLDER}")
-    set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/SunHelm - Individual Follower Needs")
+    set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/SunHelm - Individual Follower Needs (Skyrim 1.7)")
 elseif(DEFINED ENV{SKYRIM_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_FOLDER}/Data")
     set(OUTPUT_FOLDER "$ENV{SKYRIM_FOLDER}/Data")
 endif()

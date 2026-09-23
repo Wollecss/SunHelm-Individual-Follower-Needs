@@ -30,3 +30,6 @@
 namespace logger = SKSE::log;
 
 using namespace std::literals;
+
+// Skyrim 1.7 branch only: old CommonLibSSE-NG names the maintained library renamed.
+#include "Compat.h"

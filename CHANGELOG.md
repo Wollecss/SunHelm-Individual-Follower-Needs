@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.4.0 - Skyrim 1.7 build
+
+**The same mod, for players on Skyrim 1.7.104 or later.**
+
+Identical features to 1.4.0 below; what differs is the library underneath. Skyrim 1.7 changed the
+game in ways that need SKSE plugins rebuilt against an updated CommonLibSSE-NG, and the version
+the main build uses has no 1.7 support.
+
+- Built against the maintained [CommonLibSSE-NG](https://github.com/alandtse/CommonLibSSE-NG)
+  v9.0.1, pinned to an exact commit.
+- Requires **SKSE64 2.3.1** or later, and the **Address Library** release for game version 1.7.104.
+- The startup log line now says it's the Skyrim 1.7 build and which game version it loaded on,
+  since both builds share a version number.
+- **Licensed GPL-3.0-or-later**, because that library is. The main build for 1.5.97 and 1.6.x
+  stays MIT.
+
+Players on 1.5.97 or 1.6.x should keep using the main build.
+
+---
+
 ## 1.4.0
 
 **Followers eat and drink with animations.**

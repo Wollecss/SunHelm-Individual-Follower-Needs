@@ -95,8 +95,13 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	InitializeLogging();
 
 	// Dotted separator: REL::Version::string() defaults to dashes, which reads oddly for a release.
-	logger::info("SunHelm Follower Needs v{} loaded",
-		SKSE::PluginDeclaration::GetSingleton()->GetVersion().string("."sv));
+	//
+	// Differs from main's line on purpose. Both builds carry the same feature version, so without
+	// the tag a pasted log couldn't say which library produced it - and they're different code
+	// underneath. The game version is there because it's the first question for any 1.7 report.
+	logger::info("SunHelm Follower Needs v{} (Skyrim 1.7 build) loaded on Skyrim {}",
+		SKSE::PluginDeclaration::GetSingleton()->GetVersion().string("."sv),
+		REL::Module::get().version().string("."sv));
 
 	// Before anything reads a setting. Only touches the filesystem, so it's safe this early.
 	Settings::Load();

@@ -235,9 +235,7 @@ void DevBenchTools::Register()
 	// can't reach it. Not having DevBench is the normal case for everyone who isn't developing
 	// this mod, so that line was the loudest thing in an otherwise healthy log and read like a
 	// fault. Checking for the module first means the dispatch only happens when it can succeed.
-	// Unqualified on purpose: SKSE's WinAPI header replaces GetModuleHandle with a macro pointing
-	// at its own overload, so spelling out the namespace expands to a syntax error.
-	if (!GetModuleHandle("devbench.dll")) {
+	if (!REX::W32::GetModuleHandleA("devbench.dll")) {
 		logger::info("DevBench not installed; skipping tool registration");
 		return;
 	}

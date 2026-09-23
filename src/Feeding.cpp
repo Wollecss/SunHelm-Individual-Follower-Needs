@@ -91,7 +91,7 @@ namespace
 		if (!SunHelm::DiseasesEnabled()) {
 			static std::uniform_int_distribution<int> damage{ 0, 25 };
 			const auto                                dealt = damage(engine);
-			a_actor.AsActorValueOwner()->RestoreActorValue(
+			a_actor.AsActorValueOwner()->ModActorValue(
 				RE::ACTOR_VALUE_MODIFIER::kDamage, RE::ActorValue::kHealth, -static_cast<float>(dealt));
 			logger::info("{} took {} damage from raw food (diseases are off in SunHelm)",
 				a_state.name, dealt);

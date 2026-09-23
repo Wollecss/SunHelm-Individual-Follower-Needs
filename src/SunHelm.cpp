@@ -559,8 +559,9 @@ RE::TESBoundObject* SunHelm::PickPurchasable(FoodKind a_kind)
 	// plugins that aren't loaded, and Classify() is re-checked so a mis-filed entry can't produce
 	// an item the follower would then refuse to consume.
 	RE::TESBoundObject* found = nullptr;
-	source->ForEachForm([&](RE::TESForm& a_form) {
-		if (auto* object = a_form.As<RE::TESBoundObject>(); object && Classify(object) == a_kind) {
+	source->ForEachForm([&](RE::TESForm* a_form) {
+		if (auto* object = a_form ? a_form->As<RE::TESBoundObject>() : nullptr;
+			object && Classify(object) == a_kind) {
 			found = object;
 			return RE::BSContainer::ForEachResult::kStop;
 		}

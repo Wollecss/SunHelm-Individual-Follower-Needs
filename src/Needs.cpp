@@ -191,7 +191,7 @@ namespace
 		// who goes down is a loss you can't heal your way out of, and this is a toggle people turn
 		// on for pressure rather than for losing companions.
 		const auto damage = a_elapsedHours * 5.0f * static_cast<float>(maxed);
-		a_actor.AsActorValueOwner()->RestoreActorValue(
+		a_actor.AsActorValueOwner()->ModActorValue(
 			RE::ACTOR_VALUE_MODIFIER::kDamage, RE::ActorValue::kHealth, -damage);
 	}
 }
